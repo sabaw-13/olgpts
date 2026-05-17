@@ -105,6 +105,44 @@ function Sidebar() {
         </div>
       </aside>
 
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden"
+        aria-label="Mobile navigation"
+      >
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {visibleNavigationItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) =>
+                  [
+                    'flex min-w-[76px] shrink-0 flex-col items-center justify-center gap-1 rounded-md px-2 py-2 text-[11px] font-semibold transition',
+                    isActive
+                      ? 'bg-emerald-50 text-emerald-800'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+                  ].join(' ')
+                }
+              >
+                <Icon aria-hidden="true" size={18} />
+                <span className="max-w-full truncate">{item.label}</span>
+              </NavLink>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setIsLogoutConfirmOpen(true)}
+            className="flex min-w-[76px] shrink-0 flex-col items-center justify-center gap-1 rounded-md px-2 py-2 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
+          >
+            <LogOut aria-hidden="true" size={18} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </nav>
+
       <ConfirmationModal
         isOpen={isLogoutConfirmOpen}
         title="Log out?"

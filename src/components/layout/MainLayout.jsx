@@ -11,7 +11,7 @@ function MainLayout() {
         <div className="flex min-w-0 flex-1 flex-col">
           <Header />
 
-          <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
+          <main className="flex-1 px-3 pb-28 pt-4 sm:px-6 sm:py-5 lg:px-8 lg:pb-5">
             <Outlet />
           </main>
         </div>

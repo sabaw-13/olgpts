@@ -48,8 +48,84 @@ function EnrollmentTable({ enrollments, assessmentTotals, onAssessFees, onEdit }
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="overflow-x-auto">
+    <>
+      <div className="space-y-3 lg:hidden">
+        {enrollments.map((enrollment) => (
+          <article
+            key={enrollment.id}
+            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-950">
+                  {getStudentName(enrollment.students)}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  LRN: {enrollment.students?.lrn || 'Not set'}
+                </p>
+              </div>
+              <StatusBadge status={enrollment.enrollment_status} />
+            </div>
+
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  School Year
+                </dt>
+                <dd className="mt-1 text-slate-700">
+                  {enrollment.school_years?.school_year || 'Not assigned'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Grade
+                </dt>
+                <dd className="mt-1 text-slate-700">
+                  {enrollment.grade_levels?.grade_name || 'Not assigned'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Section
+                </dt>
+                <dd className="mt-1 text-slate-700">
+                  {enrollment.sections?.section_name || 'Not assigned'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Fee
+                </dt>
+                <dd className="mt-1 font-semibold text-slate-900">
+                  {formatCurrency(assessmentTotals.get(enrollment.id) || 0)}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onAssessFees(enrollment)}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                <ClipboardCheck size={14} />
+                Fee
+              </button>
+              <button
+                type="button"
+                onClick={() => onEdit(enrollment)}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+              >
+                <Edit size={14} />
+                Edit
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:block">
+        <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50">
             <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -117,8 +193,9 @@ function EnrollmentTable({ enrollments, assessmentTotals, onAssessFees, onEdit }
             ))}
           </tbody>
         </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

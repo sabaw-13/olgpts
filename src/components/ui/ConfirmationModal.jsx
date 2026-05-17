@@ -21,7 +21,7 @@ function ConfirmationModal({
       : 'bg-emerald-700 hover:bg-emerald-800 focus:ring-emerald-100';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-3 py-4 sm:items-center sm:px-4 sm:py-6">
       <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div className="flex gap-3">
