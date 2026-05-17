@@ -1,0 +1,2 @@
+[functions.create-staff-account]
+verify_jwt = false
