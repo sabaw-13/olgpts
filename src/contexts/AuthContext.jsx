@@ -1,5 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '../lib/supabase.js';
+import { supabase, supabaseConfigError } from '../lib/supabase.js';
 
 export const AuthContext = createContext(null);
 
@@ -18,6 +18,23 @@ function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
+
+  if (supabaseConfigError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 text-slate-900">
+        <div className="w-full max-w-lg rounded-lg border border-red-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+            Deployment Configuration Needed
+          </p>
+          <h1 className="mt-2 text-xl font-bold">Supabase is not configured</h1>
+          <p className="mt-3 text-sm text-slate-600">{supabaseConfigError}</p>
+          <p className="mt-3 text-sm text-slate-600">
+            Add them in Vercel Project Settings, then redeploy the app.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const fetchProfile = useCallback(async (userId) => {
     const { data, error } = await supabase
