@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { formatStudentName } from '../../lib/studentName.js';
 
 function DetailItem({ label, value }) {
   return (
@@ -9,12 +10,6 @@ function DetailItem({ label, value }) {
       <p className="mt-1 text-sm text-slate-900">{value || 'Not set'}</p>
     </div>
   );
-}
-
-function getFullName(student) {
-  return [student?.first_name, student?.middle_name, student?.last_name]
-    .filter(Boolean)
-    .join(' ');
 }
 
 function StudentProfileModal({ student, onClose }) {
@@ -31,7 +26,7 @@ function StudentProfileModal({ student, onClose }) {
               Student Profile
             </p>
             <h3 className="mt-1 text-xl font-bold text-slate-950">
-              {getFullName(student)}
+              {formatStudentName(student)}
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               LRN / Student ID: {student.lrn || 'Not set'}

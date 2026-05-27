@@ -1,8 +1,10 @@
 import { Printer, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import NotificationToast from '../../components/ui/NotificationToast.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import ReceiptTemplate from '../../components/ui/ReceiptTemplate.jsx';
 import { supabase } from '../../lib/supabase.js';
+import { formatStudentName } from '../../lib/studentName.js';
 
 const currencyFormatter = new Intl.NumberFormat('en-PH', {
   style: 'currency',
@@ -17,18 +19,8 @@ function normalizeText(value) {
   return String(value || '').toLowerCase();
 }
 
-function getStudentName(student) {
-  if (!student) {
-    return 'Unknown student';
-  }
-
-  return [student.first_name, student.middle_name, student.last_name]
-    .filter(Boolean)
-    .join(' ') || 'Unknown student';
-}
-
 function buildReceiptSearchText(payment) {
-  return [payment.receipt_number, payment.students?.lrn, getStudentName(payment.students)]
+  return [payment.receipt_number, payment.students?.lrn, formatStudentName(payment.students)]
     .filter(Boolean)
     .join(' ');
 }
@@ -204,11 +196,10 @@ function ReceiptsPage() {
         </button>
       </div>
 
-      {errorMessage ? (
-        <div className="no-print rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      ) : null}
+      <NotificationToast
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage('')}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
         <section className="no-print rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -255,7 +246,7 @@ function ReceiptsPage() {
                       {payment.receipt_number}
                     </span>
                     <span className="mt-1 block text-slate-600">
-                      {getStudentName(payment.students)}
+                      {formatStudentName(payment.students)}
                     </span>
                     <span className="mt-1 block text-xs text-slate-500">
                       {formatCurrency(payment.payment_amount)} |{' '}

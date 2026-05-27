@@ -1,10 +1,5 @@
 import { Edit, Eye } from 'lucide-react';
-
-function getFullName(student) {
-  return [student.first_name, student.middle_name, student.last_name]
-    .filter(Boolean)
-    .join(' ');
-}
+import { formatStudentName } from '../../lib/studentName.js';
 
 function StudentTable({ students, onView, onEdit }) {
   if (students.length === 0) {
@@ -26,7 +21,7 @@ function StudentTable({ students, onView, onEdit }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-semibold text-slate-950">
-                  {getFullName(student) || 'Unnamed student'}
+                  {formatStudentName(student)}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   LRN: {student.lrn || 'Not set'}
@@ -81,9 +76,9 @@ function StudentTable({ students, onView, onEdit }) {
         ))}
       </div>
 
-      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:block">
-        <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
+      <div className="hidden w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:block">
+        <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50">
             <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <th className="px-4 py-3">LRN / Student ID</th>
@@ -100,7 +95,7 @@ function StudentTable({ students, onView, onEdit }) {
                 <td className="px-4 py-3 font-medium text-slate-900">
                   {student.lrn || 'Not set'}
                 </td>
-                <td className="px-4 py-3 text-slate-700">{getFullName(student)}</td>
+                <td className="px-4 py-3 text-slate-700">{formatStudentName(student)}</td>
                 <td className="px-4 py-3 text-slate-600">{student.gender || 'Not set'}</td>
                 <td className="px-4 py-3 text-slate-600">
                   {student.birthdate

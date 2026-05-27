@@ -1,6 +1,7 @@
 import { CheckSquare, Square, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
+import { formatStudentName } from '../../lib/studentName.js';
 
 const currencyFormatter = new Intl.NumberFormat('en-PH', {
   style: 'currency',
@@ -9,22 +10,6 @@ const currencyFormatter = new Intl.NumberFormat('en-PH', {
 
 function formatCurrency(value) {
   return currencyFormatter.format(Number(value || 0));
-}
-
-function getStudentName(student) {
-  if (!student) {
-    return 'Unknown student';
-  }
-
-  return [student.first_name, student.middle_name, student.last_name]
-    .filter(Boolean)
-    .join(' ') || 'Unknown student';
-}
-
-function isEnrollmentFee(fee) {
-  const text = `${fee?.fee_name || ''} ${fee?.fee_type || ''}`.toLowerCase();
-
-  return text.includes('enrollment');
 }
 
 function StatusBadge({ status }) {
@@ -99,9 +84,9 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
         supabase
           .from('fees')
           .select('id, fee_name, fee_type, amount, grade_level_id, school_year_id, status')
-          .eq('grade_level_id', enrollment.grade_level_id)
           .eq('school_year_id', enrollment.school_year_id)
           .eq('status', 'active')
+          .or(`grade_level_id.eq.${enrollment.grade_level_id},grade_level_id.is.null`)
           .order('fee_name', { ascending: true }),
         supabase
           .from('student_fees')
@@ -132,10 +117,8 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
         setAvailableFees([]);
         setAssignedFees([]);
       } else {
-        setAvailableFees((feesResult.data || []).filter(isEnrollmentFee));
-        setAssignedFees((studentFeesResult.data || []).filter((studentFee) =>
-          isEnrollmentFee(studentFee.fees),
-        ));
+        setAvailableFees(feesResult.data || []);
+        setAssignedFees(studentFeesResult.data || []);
       }
 
       setLoading(false);
@@ -155,14 +138,14 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
   const toggleFee = (feeId) => {
     setSelectedFeeIds((currentIds) =>
       currentIds.includes(feeId)
-        ? []
-        : [feeId],
+        ? currentIds.filter((currentId) => currentId !== feeId)
+        : [...currentIds, feeId],
     );
   };
 
   const handleAssignFees = async () => {
     if (selectedFeeIds.length === 0) {
-      setErrorMessage('Select an enrollment fee to assign.');
+      setErrorMessage('Select at least one fee to assign.');
       return;
     }
 
@@ -187,7 +170,7 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
       );
 
       if (feesToAssign.length === 0) {
-        throw new Error('This enrollment fee is already assigned to this enrollment.');
+        throw new Error('The selected fees are already assigned to this student.');
       }
 
       const payload = feesToAssign.map((fee) => ({
@@ -204,7 +187,7 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
         throw error;
       }
 
-      setSuccessMessage('Enrollment fee assigned successfully.');
+      setSuccessMessage('Fee assigned successfully.');
       setSelectedFeeIds([]);
 
       const { data, error: refreshError } = await supabase
@@ -228,10 +211,10 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
         throw refreshError;
       }
 
-      setAssignedFees((data || []).filter((studentFee) => isEnrollmentFee(studentFee.fees)));
+      setAssignedFees(data || []);
       await onSaved?.();
     } catch (error) {
-      setErrorMessage(error.message || 'Unable to assign the enrollment fee.');
+      setErrorMessage(error.message || 'Unable to assign fees.');
     } finally {
       setIsSaving(false);
     }
@@ -243,10 +226,10 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-              Enrollment Fee
+              Fees
             </p>
             <h3 className="mt-1 text-xl font-bold text-slate-950">
-              {getStudentName(enrollment.students)}
+              {formatStudentName(enrollment.students)}
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               {enrollment.grade_levels?.grade_name || 'No grade'} ·{' '}
@@ -286,7 +269,7 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
               <section className="rounded-lg border border-slate-200">
                 <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h4 className="font-semibold text-slate-950">Assigned Enrollment Fee</h4>
+                    <h4 className="font-semibold text-slate-950">Assigned Fees</h4>
                     <p className="mt-1 text-sm text-slate-500">
                       Total assessed amount: {formatCurrency(totalAssignedAmount)}
                     </p>
@@ -295,11 +278,11 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
 
                 {assignedFees.length === 0 ? (
                   <div className="px-4 py-8 text-center text-sm text-slate-500">
-                    No enrollment fee assigned to this record yet.
+                    No fees assigned to this student yet.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200 text-sm">
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
                       <thead className="bg-slate-50">
                         <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                           <th className="px-4 py-3">Fee</th>
@@ -334,9 +317,9 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
               <section className="rounded-lg border border-slate-200">
                 <div className="flex flex-col gap-2 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h4 className="font-semibold text-slate-950">Available Enrollment Fee</h4>
+                    <h4 className="font-semibold text-slate-950">Available Fees</h4>
                     <p className="mt-1 text-sm text-slate-500">
-                      Select the active enrollment fee for this grade level and school year.
+                      Select active fees for this grade level or all grades in the school year.
                     </p>
                   </div>
                   <p className="text-sm font-semibold text-slate-700">
@@ -346,7 +329,7 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
 
                 {unassignedFees.length === 0 ? (
                   <div className="px-4 py-8 text-center text-sm text-slate-500">
-                    No unassigned active enrollment fee found for this grade level and school year.
+                    No unassigned active fees found for this grade level or all grades.
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
@@ -399,7 +382,7 @@ function FeeAssessmentModal({ enrollment, onClose, onSaved }) {
                   disabled={isSaving || selectedFeeIds.length === 0}
                   className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
-                  {isSaving ? 'Assigning...' : 'Assign Enrollment Fee'}
+                  {isSaving ? 'Assigning...' : 'Assign Fees'}
                 </button>
               </div>
             </>

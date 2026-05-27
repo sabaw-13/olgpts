@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import FeeFormModal from '../../components/forms/FeeFormModal.jsx';
 import FeeTable from '../../components/tables/FeeTable.jsx';
 import ConfirmationModal from '../../components/ui/ConfirmationModal.jsx';
+import NotificationToast from '../../components/ui/NotificationToast.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import useAuth from '../../hooks/useAuth.js';
 import { supabase } from '../../lib/supabase.js';
@@ -19,22 +20,18 @@ function normalizeText(value) {
 
 function buildFeeSearchText(fee) {
   return [
-    fee.grade_levels?.grade_name,
+    fee.fee_name,
+    fee.fee_type,
+    fee.grade_levels?.grade_name || 'All Grades',
     fee.school_years?.school_year,
   ]
     .filter(Boolean)
     .join(' ');
 }
 
-function isEnrollmentFee(fee) {
-  const text = `${fee?.fee_name || ''} ${fee?.fee_type || ''}`.toLowerCase();
-
-  return text.includes('enrollment');
-}
-
 function FeesPage() {
   const { profile } = useAuth();
-  const canManage = ['admin', 'staff'].includes(profile?.role);
+  const canManage = ['admin', 'staff'].includes(profile?.role) && profile?.status === 'active';
   const [fees, setFees] = useState([]);
   const [gradeLevels, setGradeLevels] = useState([]);
   const [schoolYears, setSchoolYears] = useState([]);
@@ -48,6 +45,7 @@ function FeesPage() {
   const [formMode, setFormMode] = useState('add');
   const [selectedFee, setSelectedFee] = useState(null);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
+  const [pendingDeleteFee, setPendingDeleteFee] = useState(null);
 
   const fetchFeeData = async () => {
     setLoading(true);
@@ -89,7 +87,7 @@ function FeesPage() {
       setGradeLevels([]);
       setSchoolYears([]);
     } else {
-      setFees((feesResult.data || []).filter(isEnrollmentFee));
+      setFees(feesResult.data || []);
       setGradeLevels(gradeLevelsResult.data || []);
       setSchoolYears(schoolYearsResult.data || []);
     }
@@ -111,7 +109,9 @@ function FeesPage() {
       const matchesSchoolYear =
         filters.schoolYearId === 'all' || fee.school_year_id === filters.schoolYearId;
       const matchesGradeLevel =
-        filters.gradeLevelId === 'all' || fee.grade_level_id === filters.gradeLevelId;
+        filters.gradeLevelId === 'all' ||
+        fee.grade_level_id === filters.gradeLevelId ||
+        fee.grade_level_id === null;
       const matchesStatus = filters.status === 'all' || fee.status === filters.status;
 
       return matchesSearch && matchesSchoolYear && matchesGradeLevel && matchesStatus;
@@ -162,7 +162,7 @@ function FeesPage() {
 
   const handleSaveFee = async (formData) => {
     if (!canManage) {
-      setErrorMessage('Only active staff users can manage enrollment fees.');
+      setErrorMessage('Only active admin or staff users can manage fees.');
       return;
     }
 
@@ -195,14 +195,14 @@ function FeesPage() {
 
       setSuccessMessage(
         formMode === 'edit'
-          ? 'Enrollment fee updated successfully.'
-          : 'Enrollment fee added successfully.',
+          ? 'Fee updated successfully.'
+          : 'Fee added successfully.',
       );
       setIsFormOpen(false);
       setSelectedFee(null);
       await fetchFeeData();
     } catch (error) {
-      setErrorMessage(error.message || 'Unable to save enrollment fee.');
+      setErrorMessage(error.message || 'Unable to save fee.');
     } finally {
       setIsSaving(false);
     }
@@ -210,7 +210,7 @@ function FeesPage() {
 
   const handleToggleStatus = async (fee, status) => {
     if (!canManage) {
-      setErrorMessage('Only active staff users can manage enrollment fees.');
+      setErrorMessage('Only active admin or staff users can manage fees.');
       return;
     }
 
@@ -225,10 +225,10 @@ function FeesPage() {
         throw error;
       }
 
-      setSuccessMessage(`Enrollment fee marked as ${status}.`);
+      setSuccessMessage(`Fee marked as ${status}.`);
       await fetchFeeData();
     } catch (error) {
-      setErrorMessage(error.message || 'Unable to update enrollment fee status.');
+      setErrorMessage(error.message || 'Unable to update fee status.');
     } finally {
       setIsSaving(false);
     }
@@ -249,12 +249,58 @@ function FeesPage() {
     setPendingStatusChange(null);
   };
 
+  const requestDeleteFee = () => {
+    if (!selectedFee) {
+      return;
+    }
+
+    setPendingDeleteFee(selectedFee);
+    setErrorMessage('');
+    setSuccessMessage('');
+  };
+
+  const confirmDeleteFee = async () => {
+    if (!pendingDeleteFee) {
+      return;
+    }
+
+    if (!canManage) {
+      setErrorMessage('Only active admin or staff users can manage fees.');
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const { error } = await supabase.from('fees').delete().eq('id', pendingDeleteFee.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setSuccessMessage('Fee deleted successfully.');
+      setPendingDeleteFee(null);
+      setIsFormOpen(false);
+      setSelectedFee(null);
+      await fetchFeeData();
+    } catch (error) {
+      setErrorMessage(
+        error.message ||
+          'Unable to delete fee. Fees already assigned to students or payments cannot be deleted.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <PageHeader
-          title="Enrollment Fee"
-          description="Set the enrollment fee assigned to each grade level and school year."
+          title="Fees"
+          description="Create and manage different school fees assigned to each grade level and school year."
         />
 
         {canManage ? (
@@ -264,22 +310,17 @@ function FeesPage() {
             className="inline-flex w-fit items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
           >
             <Plus size={16} />
-            Add Enrollment Fee
+            Add Fee
           </button>
         ) : null}
       </div>
 
-      {successMessage ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {successMessage}
-        </div>
-      ) : null}
-
-      {errorMessage ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      ) : null}
+      <NotificationToast
+        successMessage={successMessage}
+        errorMessage={errorMessage}
+        onDismissSuccess={() => setSuccessMessage('')}
+        onDismissError={() => setErrorMessage('')}
+      />
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 lg:grid-cols-[1fr_repeat(3,minmax(150px,190px))]">
@@ -293,7 +334,7 @@ function FeesPage() {
               type="search"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search by grade or school year"
+              placeholder="Search by fee, type, grade, or school year"
               className="block w-full rounded-md border border-slate-300 py-2 pl-10 pr-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
             />
           </label>
@@ -321,6 +362,7 @@ function FeesPage() {
             aria-label="Filter by grade level"
           >
             <option value="all">All grade levels</option>
+            <option value="all-grades">Fees for all grades</option>
             {gradeLevels.map((gradeLevel) => (
               <option key={gradeLevel.id} value={gradeLevel.id}>
                 {gradeLevel.grade_name}
@@ -344,7 +386,7 @@ function FeesPage() {
 
       {loading ? (
         <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">
-          Loading enrollment fee records...
+          Loading fee records...
         </div>
       ) : (
         <FeeTable
@@ -364,18 +406,30 @@ function FeesPage() {
         schoolYears={schoolYears}
         isSaving={isSaving}
         onClose={handleCloseForm}
+        onDelete={requestDeleteFee}
         onSubmit={handleSaveFee}
       />
 
       <ConfirmationModal
         isOpen={Boolean(pendingStatusChange)}
-        title={`${pendingStatusChange?.status === 'active' ? 'Activate' : 'Deactivate'} enrollment fee?`}
-        message={`This will mark the enrollment fee for "${pendingStatusChange?.fee?.grade_levels?.grade_name || 'this grade level'}" as ${pendingStatusChange?.status}.`}
+        title={`${pendingStatusChange?.status === 'active' ? 'Activate' : 'Deactivate'} fee?`}
+        message={`This will mark "${pendingStatusChange?.fee?.fee_name || 'this fee'}" as ${pendingStatusChange?.status}.`}
         confirmLabel={pendingStatusChange?.status === 'active' ? 'Activate' : 'Deactivate'}
         variant={pendingStatusChange?.status === 'inactive' ? 'danger' : 'default'}
         isProcessing={isSaving}
         onConfirm={confirmToggleStatus}
         onCancel={() => setPendingStatusChange(null)}
+      />
+
+      <ConfirmationModal
+        isOpen={Boolean(pendingDeleteFee)}
+        title="Delete fee?"
+        message={`This will permanently delete "${pendingDeleteFee?.fee_name || 'this fee'}". Fees already used by student accounts or payments may be blocked by the database.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isProcessing={isSaving}
+        onConfirm={confirmDeleteFee}
+        onCancel={() => setPendingDeleteFee(null)}
       />
     </div>
   );

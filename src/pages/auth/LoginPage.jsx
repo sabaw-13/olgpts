@@ -52,10 +52,10 @@ function LoginPage() {
 
   return (
     <AuthLayout>
-      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#b77900]">
         OLGTPS
       </p>
-      <h1 className="mt-2 text-2xl font-bold text-slate-950">Sign in</h1>
+      <h1 className="mt-2 text-2xl font-bold text-[#132a63]">Sign in</h1>
       <p className="mt-3 text-sm text-slate-600">
         Access the Payment and Enrollment Management System.
       </p>

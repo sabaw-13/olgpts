@@ -30,7 +30,7 @@ function FeeTable({ fees, canManage, isSaving, onEdit, onToggleStatus }) {
   if (fees.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-        No enrollment fee records found.
+        No fee records found.
       </div>
     );
   }
@@ -49,9 +49,10 @@ function FeeTable({ fees, canManage, isSaving, onEdit, onToggleStatus }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-950">
-                    {fee.grade_levels?.grade_name || 'Not assigned'}
+                    {fee.fee_name || 'Untitled fee'}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
+                    {fee.fee_type || 'No type'} | {fee.grade_levels?.grade_name || 'All Grades'} |{' '}
                     {fee.school_years?.school_year || 'Not assigned'}
                   </p>
                 </div>
@@ -94,11 +95,13 @@ function FeeTable({ fees, canManage, isSaving, onEdit, onToggleStatus }) {
         })}
       </div>
 
-      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:block">
-        <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
+      <div className="hidden w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:block">
+        <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50">
             <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th className="px-4 py-3">Fee</th>
+              <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3">Grade Level</th>
               <th className="px-4 py-3">School Year</th>
               <th className="px-4 py-3 text-right">Amount</th>
@@ -112,8 +115,14 @@ function FeeTable({ fees, canManage, isSaving, onEdit, onToggleStatus }) {
 
               return (
                 <tr key={fee.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-900">
+                    {fee.fee_name || 'Untitled fee'}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {fee.grade_levels?.grade_name || 'Not assigned'}
+                    {fee.fee_type || 'Not set'}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {fee.grade_levels?.grade_name || 'All Grades'}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     {fee.school_years?.school_year || 'Not assigned'}

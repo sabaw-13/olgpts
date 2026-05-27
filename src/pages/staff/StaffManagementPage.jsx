@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Edit, Plus, Power, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import ConfirmationModal from '../../components/ui/ConfirmationModal.jsx';
+import NotificationToast from '../../components/ui/NotificationToast.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import useAuth from '../../hooks/useAuth.js';
 import { supabase, supabaseAnonKey, supabaseUrl } from '../../lib/supabase.js';
@@ -553,17 +554,12 @@ function StaffManagementPage() {
         </button>
       </div>
 
-      {successMessage ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {successMessage}
-        </div>
-      ) : null}
-
-      {errorMessage ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      ) : null}
+      <NotificationToast
+        successMessage={successMessage}
+        errorMessage={errorMessage}
+        onDismissSuccess={() => setSuccessMessage('')}
+        onDismissError={() => setErrorMessage('')}
+      />
 
       {loading ? (
         <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">
@@ -574,9 +570,9 @@ function StaffManagementPage() {
           No staff profiles found.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
+        <div className="w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-3">Full Name</th>

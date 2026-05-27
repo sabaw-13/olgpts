@@ -56,7 +56,7 @@ create table if not exists enrollments (
   school_year_id uuid references school_years(id) on delete restrict,
   grade_level_id uuid references grade_levels(id) on delete restrict,
   section_id uuid references sections(id) on delete restrict,
-  enrollment_status text check (enrollment_status in ('pending', 'enrolled', 'inactive')),
+  enrollment_status text check (enrollment_status in ('pending', 'enrolled', 'graduated', 'inactive')),
   enrollment_date date,
   created_at timestamp with time zone default now()
 );

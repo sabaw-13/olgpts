@@ -1,5 +1,6 @@
 import { Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { formatStudentName, sortStudentsByName } from '../../lib/studentName.js';
 
 const emptyForm = {
   student_id: '',
@@ -10,18 +11,12 @@ const emptyForm = {
   enrollment_date: new Date().toISOString().slice(0, 10),
 };
 
-function getStudentName(student) {
-  return [student.first_name, student.middle_name, student.last_name]
-    .filter(Boolean)
-    .join(' ');
-}
-
 function normalizeText(value) {
   return String(value || '').toLowerCase();
 }
 
 function getStudentSearchText(student) {
-  return [student.lrn, getStudentName(student)].filter(Boolean).join(' ');
+  return [student.lrn, formatStudentName(student)].filter(Boolean).join(' ');
 }
 
 function EnrollmentFormModal({
@@ -57,7 +52,7 @@ function EnrollmentFormModal({
       });
       setStudentSearch(
         selectedStudent
-          ? `${selectedStudent.lrn ? `${selectedStudent.lrn} - ` : ''}${getStudentName(selectedStudent)}`
+          ? `${selectedStudent.lrn ? `${selectedStudent.lrn} - ` : ''}${formatStudentName(selectedStudent)}`
           : '',
       );
     } else {
@@ -82,10 +77,10 @@ function EnrollmentFormModal({
     const search = normalizeText(studentSearch).trim();
 
     if (!search) {
-      return students.slice(0, 8);
+      return sortStudentsByName(students).slice(0, 8);
     }
 
-    return students
+    return sortStudentsByName(students)
       .filter((student) => normalizeText(getStudentSearchText(student)).includes(search))
       .slice(0, 8);
   }, [studentSearch, students]);
@@ -132,7 +127,7 @@ function EnrollmentFormModal({
       ...currentData,
       student_id: student.id,
     }));
-    setStudentSearch(`${student.lrn ? `${student.lrn} - ` : ''}${getStudentName(student)}`);
+    setStudentSearch(`${student.lrn ? `${student.lrn} - ` : ''}${formatStudentName(student)}`);
     setValidationError('');
   };
 
@@ -217,7 +212,7 @@ function EnrollmentFormModal({
               {formData.student_id && selectedStudent ? (
                 <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
                   {selectedStudent.lrn ? `${selectedStudent.lrn} - ` : ''}
-                  {getStudentName(selectedStudent)}
+                  {formatStudentName(selectedStudent)}
                 </div>
               ) : (
                 <div className="mt-2 max-h-52 overflow-y-auto rounded-md border border-slate-200 bg-white">
@@ -234,7 +229,7 @@ function EnrollmentFormModal({
                         className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm font-normal last:border-b-0 hover:bg-slate-50"
                       >
                         <span className="block font-semibold text-slate-900">
-                          {getStudentName(student)}
+                          {formatStudentName(student)}
                         </span>
                         <span className="mt-0.5 block text-xs text-slate-500">
                           LRN: {student.lrn || 'Not set'}
@@ -278,6 +273,8 @@ function EnrollmentFormModal({
                 >
                   {formData.enrollment_status === 'enrolled' ? (
                     <option value="enrolled">Enrolled</option>
+                  ) : formData.enrollment_status === 'graduated' ? (
+                    <option value="graduated">Graduated</option>
                   ) : (
                     <option value="pending">Pending</option>
                   )}

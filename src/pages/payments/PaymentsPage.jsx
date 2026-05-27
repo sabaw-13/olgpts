@@ -1,8 +1,10 @@
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import NotificationToast from '../../components/ui/NotificationToast.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import useAuth from '../../hooks/useAuth.js';
 import { supabase } from '../../lib/supabase.js';
+import { formatStudentName } from '../../lib/studentName.js';
 
 const currencyFormatter = new Intl.NumberFormat('en-PH', {
   style: 'currency',
@@ -21,16 +23,6 @@ function formatCurrency(value) {
 
 function normalizeText(value) {
   return String(value || '').toLowerCase();
-}
-
-function getStudentName(student) {
-  if (!student) {
-    return 'Unknown student';
-  }
-
-  return [student.first_name, student.middle_name, student.last_name]
-    .filter(Boolean)
-    .join(' ') || 'Unknown student';
 }
 
 function generateReceiptNumber() {
@@ -146,9 +138,9 @@ function PaymentsPage() {
     const { data: activeFees, error: activeFeeError } = await supabase
       .from('fees')
       .select('id, fee_name, fee_type, amount')
-      .eq('grade_level_id', enrollment.grade_level_id)
       .eq('school_year_id', enrollment.school_year_id)
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .or(`grade_level_id.eq.${enrollment.grade_level_id},grade_level_id.is.null`);
 
     if (activeFeeError) {
       throw activeFeeError;
@@ -302,7 +294,7 @@ function PaymentsPage() {
 
     return students
       .filter((student) =>
-        normalizeText(`${student.lrn || ''} ${getStudentName(student)}`).includes(
+        normalizeText(`${student.lrn || ''} ${formatStudentName(student)}`).includes(
           normalizedSearch,
         ),
       )
@@ -594,17 +586,12 @@ function PaymentsPage() {
         description="Record enrollment fee payments and compute student balances."
       />
 
-      {successMessage ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {successMessage}
-        </div>
-      ) : null}
-
-      {errorMessage ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      ) : null}
+      <NotificationToast
+        successMessage={successMessage}
+        errorMessage={errorMessage}
+        onDismissSuccess={() => setSuccessMessage('')}
+        onDismissError={() => setErrorMessage('')}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -648,7 +635,7 @@ function PaymentsPage() {
                     ].join(' ')}
                   >
                     <span className="block font-semibold text-slate-900">
-                      {getStudentName(student)}
+                      {formatStudentName(student)}
                     </span>
                     <span className="mt-1 block text-xs text-slate-500">
                       LRN: {student.lrn || 'Not set'}
@@ -671,7 +658,7 @@ function PaymentsPage() {
             </section>
           ) : !activeEnrollment ? (
             <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-6 text-sm text-amber-800">
-              No active enrollment found for {getStudentName(selectedStudent)}.
+              No active enrollment found for {formatStudentName(selectedStudent)}.
             </section>
           ) : (
             <>
@@ -679,7 +666,7 @@ function PaymentsPage() {
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <h3 className="text-lg font-bold text-slate-950">
-                      {getStudentName(selectedStudent)}
+                      {formatStudentName(selectedStudent)}
                     </h3>
                     <p className="mt-1 text-sm text-slate-500">
                       {activeEnrollment.school_years?.school_year || 'No school year'} |{' '}
@@ -706,8 +693,8 @@ function PaymentsPage() {
                     No enrollment fee found. Assign the enrollment fee from the Enrollment module first.
                   </p>
                 ) : (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200 text-sm">
+                  <div className="mt-4 w-full overflow-x-auto">
+                    <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
                       <thead className="bg-slate-50">
                         <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                           <th className="px-3 py-3">Fee</th>
@@ -758,8 +745,8 @@ function PaymentsPage() {
                         No enrollment fee is available for payment.
                       </p>
                     ) : (
-                      <div className="mt-2 overflow-x-auto rounded-md border border-slate-200">
-                        <table className="min-w-full divide-y divide-slate-200 text-sm">
+                      <div className="mt-2 w-full overflow-x-auto rounded-md border border-slate-200">
+                        <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
                           <thead className="bg-slate-50">
                             <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                               <th className="w-12 px-3 py-3">Pay</th>
@@ -892,8 +879,8 @@ function PaymentsPage() {
                     No previous payments found.
                   </p>
                 ) : (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200 text-sm">
+                  <div className="mt-4 w-full overflow-x-auto">
+                    <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
                       <thead className="bg-slate-50">
                         <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                           <th className="px-3 py-3">Receipt No.</th>

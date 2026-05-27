@@ -4,7 +4,6 @@ import RoleBasedRoute from '../components/auth/RoleBasedRoute.jsx';
 import MainLayout from '../components/layout/MainLayout.jsx';
 import LoginPage from '../pages/auth/LoginPage.jsx';
 import DashboardPage from '../pages/dashboard/DashboardPage.jsx';
-import StudentsPage from '../pages/students/StudentsPage.jsx';
 import EnrollmentPage from '../pages/enrollment/EnrollmentPage.jsx';
 import FeesPage from '../pages/fees/FeesPage.jsx';
 import PaymentsPage from '../pages/payments/PaymentsPage.jsx';
@@ -44,7 +43,15 @@ function AppRoutes() {
           path="/students"
           element={
             <RoleBasedRoute allowedRoles={['admin', 'staff']}>
-              <StudentsPage />
+              <EnrollmentPage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/graduated-students"
+          element={
+            <RoleBasedRoute allowedRoles={['admin', 'staff']}>
+              <EnrollmentPage graduatedOnly />
             </RoleBasedRoute>
           }
         />
@@ -58,11 +65,7 @@ function AppRoutes() {
         />
         <Route
           path="/enrollment"
-          element={
-            <RoleBasedRoute allowedRoles={['admin', 'staff']}>
-              <EnrollmentPage />
-            </RoleBasedRoute>
-          }
+          element={<Navigate to="/students" replace />}
         />
         <Route
           path="/fees"

@@ -1,3 +1,5 @@
+import { formatStudentName } from '../../lib/studentName.js';
+
 const currencyFormatter = new Intl.NumberFormat('en-PH', {
   style: 'currency',
   currency: 'PHP',
@@ -5,16 +7,6 @@ const currencyFormatter = new Intl.NumberFormat('en-PH', {
 
 function formatCurrency(value) {
   return currencyFormatter.format(Number(value || 0));
-}
-
-function getStudentName(student) {
-  if (!student) {
-    return 'Unknown student';
-  }
-
-  return [student.first_name, student.middle_name, student.last_name]
-    .filter(Boolean)
-    .join(' ') || 'Unknown student';
 }
 
 function DetailItem({ label, value }) {
@@ -55,7 +47,7 @@ function ReceiptTemplate({ receipt }) {
               : 'Not set'
           }
         />
-        <DetailItem label="Student Name" value={getStudentName(receipt.students)} />
+        <DetailItem label="Student Name" value={formatStudentName(receipt.students)} />
         <DetailItem label="LRN / Student ID" value={receipt.students?.lrn} />
         <DetailItem
           label="Grade Level"

@@ -3,10 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import StudentFormModal from '../../components/forms/StudentFormModal.jsx';
 import StudentTable from '../../components/tables/StudentTable.jsx';
 import ConfirmationModal from '../../components/ui/ConfirmationModal.jsx';
+import NotificationToast from '../../components/ui/NotificationToast.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import StudentProfileModal from '../../components/ui/StudentProfileModal.jsx';
 import useAuth from '../../hooks/useAuth.js';
 import { supabase } from '../../lib/supabase.js';
+import { formatStudentName } from '../../lib/studentName.js';
 
 const studentCsvColumns = [
   'lrn',
@@ -53,6 +55,7 @@ function normalizeText(value) {
 function buildStudentSearchText(student) {
   return [
     student.lrn,
+    formatStudentName(student),
     student.first_name,
     student.middle_name,
     student.last_name,
@@ -502,17 +505,12 @@ function StudentsPage() {
         ) : null}
       </div>
 
-      {successMessage ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {successMessage}
-        </div>
-      ) : null}
-
-      {errorMessage ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      ) : null}
+      <NotificationToast
+        successMessage={successMessage}
+        errorMessage={errorMessage}
+        onDismissSuccess={() => setSuccessMessage('')}
+        onDismissError={() => setErrorMessage('')}
+      />
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 md:grid-cols-[1fr_220px]">

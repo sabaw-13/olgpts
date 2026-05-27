@@ -5,7 +5,19 @@
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   color: #172033;
-  background: #f5f7fb;
+  background: #f4f7fc;
+  --school-blue-deep: #1f3f93;
+  --school-blue: #2655c7;
+  --school-blue-bright: #3678ee;
+  --school-blue-ink: #132a63;
+  --school-gold: #f5bb2e;
+  --school-gold-deep: #b77900;
+  --school-gold-soft: #fff7df;
+  --school-border: #d9e3f5;
+  --school-surface: #ffffff;
+  --school-surface-soft: #f8fbff;
+  --school-text-muted: #64748b;
+  --school-card-shadow: 0 16px 38px rgba(19, 42, 99, 0.08);
 }
 
 * {
@@ -16,6 +28,10 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background:
+    radial-gradient(circle at top right, rgba(54, 120, 238, 0.08), transparent 30rem),
+    linear-gradient(135deg, rgba(245, 187, 46, 0.06), transparent 24rem),
+    #f4f7fc;
 }
 
 button,
@@ -24,6 +40,46 @@ select,
 textarea {
   font: inherit;
   min-width: 0;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+button:not(:disabled):active,
+a[href]:active {
+  transform: translateY(1px);
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  background-color: #ffffff;
+  border-color: #c8d6ec !important;
+  box-shadow: inset 0 1px 2px rgba(19, 42, 99, 0.04);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--school-blue) !important;
+  box-shadow:
+    0 0 0 3px rgba(245, 187, 46, 0.22),
+    inset 0 1px 2px rgba(19, 42, 99, 0.04) !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--school-blue-deep);
 }
 
 a {
@@ -47,6 +103,132 @@ h4,
 span,
 dd {
   overflow-wrap: anywhere;
+}
+
+::selection {
+  background: rgba(245, 187, 46, 0.35);
+  color: var(--school-blue-ink);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #eef3fb;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b8c9e6;
+  border: 2px solid #eef3fb;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8da6d0;
+}
+
+.border-slate-200 {
+  border-color: var(--school-border) !important;
+}
+
+.border-slate-300 {
+  border-color: #c8d6ec !important;
+}
+
+.bg-slate-50 {
+  background-color: var(--school-surface-soft) !important;
+}
+
+.hover\:bg-slate-50:hover,
+.hover\:bg-slate-100:hover {
+  background-color: #eef5ff !important;
+}
+
+.text-slate-950 {
+  color: var(--school-blue-ink) !important;
+}
+
+.text-slate-500,
+.text-slate-600 {
+  color: var(--school-text-muted) !important;
+}
+
+.shadow-sm {
+  box-shadow: 0 10px 28px rgba(19, 42, 99, 0.07) !important;
+}
+
+main .rounded-lg.border.bg-white:not(.receipt-print-area):not(.report-print-area) {
+  box-shadow: var(--school-card-shadow) !important;
+}
+
+main .rounded-lg.border.border-dashed {
+  background:
+    linear-gradient(180deg, rgba(255, 247, 223, 0.44), rgba(248, 251, 255, 0.9)),
+    #ffffff !important;
+  border-color: #bfd0eb !important;
+}
+
+thead,
+.bg-slate-50 thead {
+  background:
+    linear-gradient(90deg, rgba(31, 63, 147, 0.07), rgba(245, 187, 46, 0.08)),
+    var(--school-surface-soft) !important;
+}
+
+th {
+  color: #455a7f !important;
+}
+
+tbody tr {
+  transition: background-color 160ms ease;
+}
+
+tbody tr:hover {
+  background-color: #f8fbff;
+}
+
+.divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e9eff9 !important;
+}
+
+.bg-emerald-700 {
+  background-color: var(--school-blue-deep) !important;
+}
+
+.hover\:bg-emerald-800:hover {
+  background-color: var(--school-blue-ink) !important;
+}
+
+.bg-emerald-50 {
+  background-color: var(--school-gold-soft) !important;
+}
+
+.text-emerald-700,
+.text-emerald-800 {
+  color: var(--school-gold-deep) !important;
+}
+
+.border-emerald-200 {
+  border-color: rgba(245, 187, 46, 0.5) !important;
+}
+
+.border-emerald-300 {
+  border-color: rgba(245, 187, 46, 0.75) !important;
+}
+
+.focus\:border-emerald-600:focus {
+  border-color: var(--school-blue) !important;
+}
+
+.focus\:ring-emerald-100:focus {
+  --tw-ring-color: rgba(245, 187, 46, 0.28) !important;
+}
+
+.focus\:ring-emerald-600:focus {
+  --tw-ring-color: rgba(38, 85, 199, 0.35) !important;
 }
 
 @media print {

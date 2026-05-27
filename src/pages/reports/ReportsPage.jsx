@@ -1,7 +1,9 @@
 import { Download, Printer, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import NotificationToast from '../../components/ui/NotificationToast.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import { supabase } from '../../lib/supabase.js';
+import { formatStudentName } from '../../lib/studentName.js';
 
 const currencyFormatter = new Intl.NumberFormat('en-PH', {
   style: 'currency',
@@ -53,16 +55,6 @@ function formatMonth(monthKey) {
     month: 'long',
     year: 'numeric',
   });
-}
-
-function getStudentName(student) {
-  if (!student) {
-    return 'Unknown student';
-  }
-
-  return [student.first_name, student.middle_name, student.last_name]
-    .filter(Boolean)
-    .join(' ') || 'Unknown student';
 }
 
 function getPaymentStatus(assessed, paid) {
@@ -124,7 +116,7 @@ function paymentMatchesReportFilters(payment, filters) {
     filters.sectionId === 'all' || payment.enrollments?.section_id === filters.sectionId;
   const matchesStudent =
     !normalizedStudentName ||
-    normalizeText(`${getStudentName(payment.students)} ${payment.students?.lrn || ''}`).includes(
+    normalizeText(`${formatStudentName(payment.students)} ${payment.students?.lrn || ''}`).includes(
       normalizedStudentName,
     );
 
@@ -354,7 +346,7 @@ function ReportsPage() {
           enrollment,
           student: enrollment?.students,
           lrn: enrollment?.students?.lrn || '',
-          studentName: getStudentName(enrollment?.students),
+          studentName: formatStudentName(enrollment?.students),
           schoolYearId: enrollment?.school_year_id,
           schoolYear: enrollment?.school_years?.school_year || 'Not assigned',
           gradeLevelId: enrollment?.grade_level_id,
@@ -375,7 +367,7 @@ function ReportsPage() {
       return reportData.enrollments.map((enrollment) => ({
         id: enrollment.id,
         date: enrollment.enrollment_date || enrollment.created_at,
-        studentName: getStudentName(enrollment.students),
+        studentName: formatStudentName(enrollment.students),
         lrn: enrollment.students?.lrn || '',
         schoolYearId: enrollment.school_year_id,
         schoolYear: enrollment.school_years?.school_year || 'Not assigned',
@@ -393,7 +385,7 @@ function ReportsPage() {
         id: payment.id,
         date: payment.payment_date || payment.created_at,
         receiptNumber: payment.receipt_number,
-        studentName: getStudentName(payment.students),
+        studentName: formatStudentName(payment.students),
         lrn: payment.students?.lrn || '',
         schoolYearId: payment.enrollments?.school_year_id,
         schoolYear: payment.enrollments?.school_years?.school_year || 'Not assigned',
@@ -653,11 +645,10 @@ function ReportsPage() {
         </div>
       </div>
 
-      {errorMessage ? (
-        <div className="no-print rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      ) : null}
+      <NotificationToast
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage('')}
+      />
 
       <section className="no-print rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 lg:grid-cols-3 xl:grid-cols-6">
@@ -807,8 +798,8 @@ function ReportsPage() {
         ) : reportRows.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {reportColumns.map((column) => (
