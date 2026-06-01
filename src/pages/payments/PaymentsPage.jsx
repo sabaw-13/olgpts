@@ -535,7 +535,7 @@ function PaymentsPage() {
           enrollment_id: activeEnrollment.id,
           receipt_number: receiptNumber,
           payment_amount: paymentAmount,
-          payment_method: paymentForm.payment_method,
+          payment_method: 'Cash',
           remarks: paymentForm.remarks.trim(),
           received_by: profile.id,
           payment_date: paymentForm.payment_date,
@@ -824,17 +824,12 @@ function PaymentsPage() {
 
                   <label className="block text-sm font-medium text-slate-700">
                     Payment Method
-                    <select
-                      name="payment_method"
-                      value={paymentForm.payment_method}
-                      onChange={handlePaymentFormChange}
-                      className="mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                    >
-                      <option value="Cash">Cash</option>
-                      <option value="GCash">GCash</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    <input
+                      type="text"
+                      value="Cash"
+                      readOnly
+                      className="mt-2 block w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none"
+                    />
                   </label>
 
                   <label className="block text-sm font-medium text-slate-700">

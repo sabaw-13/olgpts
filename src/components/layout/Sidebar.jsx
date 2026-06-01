@@ -112,6 +112,14 @@ function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
     closeMobileSidebar();
   };
 
+  const renderLogoImage = () => (
+    <img
+      src="/logo.png"
+      alt="OLGTPS logo"
+      className="h-full w-full rounded-full object-contain"
+    />
+  );
+
   return (
     <>
       <button
@@ -137,8 +145,8 @@ function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
         {!isDesktopExpanded ? (
           <>
             <div className="flex shrink-0 justify-center">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-[#f5bb2e] text-sm font-black text-[#132a63] shadow-lg shadow-blue-950/20">
-                OL
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white shadow-lg shadow-blue-950/20">
+                {renderLogoImage()}
               </div>
             </div>
 
@@ -205,8 +213,8 @@ function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
           <>
             <div className="min-w-0 shrink-0">
               <div className="flex min-w-0 items-center justify-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-[#f5bb2e] text-sm font-black text-[#132a63] shadow-lg shadow-blue-950/20">
-                  OL
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white shadow-lg shadow-blue-950/20">
+                  {renderLogoImage()}
                 </div>
                 <div className="min-w-0 overflow-hidden transition-all duration-200 w-48 opacity-100">
                   <p className="whitespace-nowrap text-lg font-bold tracking-wide text-white">
@@ -270,7 +278,10 @@ function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
 
           <aside className="relative flex h-full w-[min(20rem,86vw)] flex-col bg-gradient-to-b from-[#24499d] via-[#1f3f93] to-[#173274] px-4 py-5 text-white shadow-xl">
             <div className="mb-6 flex items-start justify-between gap-4">
-              <div>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white shadow-lg shadow-blue-950/20">
+                  {renderLogoImage()}
+                </div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#f5bb2e]">
                   OLGTPS
                 </p>

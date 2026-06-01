@@ -52,7 +52,14 @@ function LoginPage() {
 
   return (
     <AuthLayout>
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#b77900]">
+      <div className="flex justify-center">
+        <img
+          src="/logo.png"
+          alt="OLGTPS logo"
+          className="h-24 w-24 rounded-full object-contain shadow-md shadow-blue-950/10"
+        />
+      </div>
+      <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-[#b77900]">
         OLGTPS
       </p>
       <h1 className="mt-2 text-2xl font-bold text-[#132a63]">Sign in</h1>
