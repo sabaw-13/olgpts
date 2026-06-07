@@ -462,48 +462,48 @@ function StudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <PageHeader
-          title="Students"
-          description="Manage student records for OLGTPS."
-        />
-
-        {canAddStudent ? (
-          <div className="flex flex-wrap gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              onChange={handleCsvFileChange}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-            >
-              <Upload size={16} />
-              Import CSV
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadCsvTemplate}
-              className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-            >
-              <Download size={16} />
-              Template
-            </button>
-            <button
-              type="button"
-              onClick={handleAddStudent}
-              className="inline-flex w-fit items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-            >
-              <Plus size={16} />
-              Add Student
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <PageHeader
+        sticky
+        title="Students"
+        description="Manage student records for OLGTPS."
+        actions={
+          canAddStudent ? (
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                onChange={handleCsvFileChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                <Upload size={16} />
+                Import CSV
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadCsvTemplate}
+                className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                <Download size={16} />
+                Template
+              </button>
+              <button
+                type="button"
+                onClick={handleAddStudent}
+                className="inline-flex w-fit items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+              >
+                <Plus size={16} />
+                Add Student
+              </button>
+            </div>
+          ) : null
+        }
+      />
 
       <NotificationToast
         successMessage={successMessage}

@@ -16,7 +16,6 @@ const reportTypes = [
   { value: 'studentBalances', label: 'Student Balance Report' },
   { value: 'dailyCollections', label: 'Daily Collection Report' },
   { value: 'monthlySummary', label: 'Monthly Financial Summary' },
-  { value: 'unpaidBalances', label: 'Students with Unpaid Balances' },
 ];
 
 const defaultFilters = {
@@ -67,12 +66,6 @@ function getPaymentStatus(assessed, paid) {
   }
 
   return 'partial';
-}
-
-function isEnrollmentFee(fee) {
-  const text = `${fee?.fee_name || ''} ${fee?.fee_type || ''}`.toLowerCase();
-
-  return text.includes('enrollment');
 }
 
 function getReportTitle(reportType) {
@@ -287,9 +280,7 @@ function ReportsPage() {
       setReportData({
         enrollments: enrollmentsResult.data || [],
         payments: paymentsResult.data || [],
-        studentFees: (studentFeesResult.data || []).filter((studentFee) =>
-          isEnrollmentFee(studentFee.fees),
-        ),
+        studentFees: studentFeesResult.data || [],
         schoolYears: schoolYearsResult.data || [],
         gradeLevels: gradeLevelsResult.data || [],
         sections: sectionsResult.data || [],
@@ -364,20 +355,22 @@ function ReportsPage() {
 
   const baseRows = useMemo(() => {
     if (reportType === 'enrollment') {
-      return reportData.enrollments.map((enrollment) => ({
-        id: enrollment.id,
-        date: enrollment.enrollment_date || enrollment.created_at,
-        studentName: formatStudentName(enrollment.students),
-        lrn: enrollment.students?.lrn || '',
-        schoolYearId: enrollment.school_year_id,
-        schoolYear: enrollment.school_years?.school_year || 'Not assigned',
-        gradeLevelId: enrollment.grade_level_id,
-        gradeLevel: enrollment.grade_levels?.grade_name || 'Not assigned',
-        sectionId: enrollment.section_id,
-        section: enrollment.sections?.section_name || 'Not assigned',
-        status: enrollment.enrollment_status,
-        enrollmentDate: formatDate(enrollment.enrollment_date),
-      }));
+      return reportData.enrollments
+        .filter((enrollment) => enrollment.enrollment_status !== 'graduated')
+        .map((enrollment) => ({
+          id: enrollment.id,
+          date: enrollment.enrollment_date || enrollment.created_at,
+          studentName: formatStudentName(enrollment.students),
+          lrn: enrollment.students?.lrn || '',
+          schoolYearId: enrollment.school_year_id,
+          schoolYear: enrollment.school_years?.school_year || 'Not assigned',
+          gradeLevelId: enrollment.grade_level_id,
+          gradeLevel: enrollment.grade_levels?.grade_name || 'Not assigned',
+          sectionId: enrollment.section_id,
+          section: enrollment.sections?.section_name || 'Not assigned',
+          status: enrollment.enrollment_status,
+          enrollmentDate: formatDate(enrollment.enrollment_date),
+        }));
     }
 
     if (reportType === 'paymentHistory') {
@@ -455,10 +448,6 @@ function ReportsPage() {
       return Array.from(totals.values()).sort((first, second) =>
         String(second.id).localeCompare(String(first.id)),
       );
-    }
-
-    if (reportType === 'unpaidBalances') {
-      return balanceRows.filter((row) => row.balance > 0);
     }
 
     return balanceRows;
@@ -617,33 +606,34 @@ function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="no-print flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <PageHeader
-          title="Reports"
-          description="Generate enrollment, payment, collection, and student balance reports."
-        />
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            disabled={reportRows.length === 0}
-            className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Download size={16} />
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            disabled={reportRows.length === 0}
-            className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-          >
-            <Printer size={16} />
-            Print Report
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        sticky
+        className="no-print"
+        title="Reports"
+        description="Generate enrollment, payment, collection, and student balance reports."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={reportRows.length === 0}
+              className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Download size={16} />
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={reportRows.length === 0}
+              className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              <Printer size={16} />
+              Print Report
+            </button>
+          </div>
+        }
+      />
 
       <NotificationToast
         errorMessage={errorMessage}
@@ -785,7 +775,7 @@ function ReportsPage() {
           </h2>
           <p className="mt-1 text-sm text-slate-500">
             {reportRows.length} record{reportRows.length === 1 ? '' : 's'} found
-            {['paymentHistory', 'dailyCollections', 'monthlySummary', 'studentBalances', 'unpaidBalances'].includes(reportType)
+            {['paymentHistory', 'dailyCollections', 'monthlySummary', 'studentBalances'].includes(reportType)
               ? ` | Total: ${formatCurrency(totalAmount)}`
               : ''}
           </p>

@@ -1065,23 +1065,23 @@ function SchoolSetupPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        sticky
         title="School Setup"
         description="Manage school years, grade levels, and sections used by OLGTPS records."
+        actions={
+          canManage ? (
+            <button
+              type="button"
+              onClick={openPromotionModal}
+              disabled={isSaving || loading}
+              className="inline-flex items-center gap-2 rounded-md bg-[#f5bb2e] px-3 py-2 text-xs font-bold text-[#132a63] hover:bg-[#ffd46a] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+            >
+              <ArrowUpRight size={15} />
+              Promote Students
+            </button>
+          ) : null
+        }
       />
-
-      {canManage ? (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={openPromotionModal}
-            disabled={isSaving || loading}
-            className="inline-flex items-center gap-2 rounded-md bg-[#f5bb2e] px-3 py-2 text-xs font-bold text-[#132a63] hover:bg-[#ffd46a] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-          >
-            <ArrowUpRight size={15} />
-            Promote Students
-          </button>
-        </div>
-      ) : null}
 
       <NotificationToast
         successMessage={successMessage}

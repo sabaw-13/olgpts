@@ -29,12 +29,6 @@ function getPaymentSortTime(payment) {
   return new Date(payment.created_at || payment.payment_date || 0).getTime();
 }
 
-function isEnrollmentFee(fee) {
-  const text = `${fee?.fee_name || ''} ${fee?.fee_type || ''}`.toLowerCase();
-
-  return text.includes('enrollment');
-}
-
 function ReceiptsPage() {
   const [payments, setPayments] = useState([]);
   const [studentFees, setStudentFees] = useState([]);
@@ -88,9 +82,7 @@ function ReceiptsPage() {
     } else {
       const paymentRows = paymentsResult.data || [];
       setPayments(paymentRows);
-      setStudentFees((studentFeesResult.data || []).filter((studentFee) =>
-        isEnrollmentFee(studentFee.fees),
-      ));
+      setStudentFees(studentFeesResult.data || []);
       setSelectedReceipt((currentReceipt) => currentReceipt || paymentRows[0] || null);
     }
 
@@ -179,22 +171,23 @@ function ReceiptsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="no-print flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <PageHeader
-          title="Receipts"
-          description="Search, view, and print official payment receipts."
-        />
-
-        <button
-          type="button"
-          onClick={handlePrint}
-          disabled={!selectedReceiptWithBalance}
-          className="inline-flex w-fit items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-        >
-          <Printer size={16} />
-          Print Receipt
-        </button>
-      </div>
+      <PageHeader
+        sticky
+        className="no-print"
+        title="Receipts"
+        description="Search, view, and print official payment receipts."
+        actions={
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={!selectedReceiptWithBalance}
+            className="inline-flex w-fit items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+          >
+            <Printer size={16} />
+            Print Receipt
+          </button>
+        }
+      />
 
       <NotificationToast
         errorMessage={errorMessage}

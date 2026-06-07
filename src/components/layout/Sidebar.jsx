@@ -9,7 +9,6 @@ import {
   LogOut,
   Menu,
   ReceiptText,
-  Settings,
   Users,
   WalletCards,
   X,
@@ -28,7 +27,6 @@ const navigationItems = [
   { label: 'Receipts', path: '/receipts', icon: ReceiptText, roles: ['admin', 'staff'] },
   { label: 'Reports', path: '/reports', icon: FileBarChart, roles: ['admin', 'staff'] },
   { label: 'Staff Management', path: '/staff', icon: Users, roles: ['admin', 'staff'] },
-  { label: 'Settings', path: '/settings', icon: Settings, roles: ['admin', 'staff'] },
 ];
 
 function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {

@@ -51,34 +51,6 @@ const studentFeeSelect = `
   fees (id, fee_name, fee_type)
 `;
 
-function StatusBadge({ status }) {
-  const styles = {
-    unpaid: 'bg-red-50 text-red-700',
-    partial: 'bg-amber-50 text-amber-700',
-    paid: 'bg-emerald-50 text-emerald-700',
-  };
-
-  return (
-    <span
-      className={[
-        'inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize',
-        styles[status] || styles.unpaid,
-      ].join(' ')}
-    >
-      {status || 'unpaid'}
-    </span>
-  );
-}
-
-function SummaryCard({ label, value }) {
-  return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
-    </article>
-  );
-}
-
 function PaymentsPage() {
   const { profile } = useAuth();
   const [students, setStudents] = useState([]);
@@ -101,22 +73,55 @@ function PaymentsPage() {
     setErrorMessage('');
 
     const { data, error } = await supabase
-      .from('students')
-      .select('id, lrn, first_name, middle_name, last_name')
-      .order('last_name', { ascending: true })
-      .order('first_name', { ascending: true });
+      .from('enrollments')
+      .select(
+        `
+        id,
+        student_id,
+        created_at,
+        enrollment_status,
+        students (id, lrn, first_name, middle_name, last_name)
+      `,
+      )
+      .order('created_at', { ascending: false });
 
     if (error) {
       setErrorMessage(error.message);
       setStudents([]);
     } else {
-      setStudents(data || []);
+      const uniqueStudents = [];
+      const seenStudentIds = new Set();
+
+      (data || []).forEach((enrollment) => {
+        const student = enrollment.students;
+
+        if (!student?.id || seenStudentIds.has(student.id)) {
+          return;
+        }
+
+        seenStudentIds.add(student.id);
+
+        if (!['pending', 'enrolled'].includes(enrollment.enrollment_status)) {
+          return;
+        }
+
+        uniqueStudents.push(student);
+      });
+
+      uniqueStudents.sort((firstStudent, secondStudent) => {
+        const firstName = formatStudentName(firstStudent);
+        const secondName = formatStudentName(secondStudent);
+
+        return firstName.localeCompare(secondName);
+      });
+
+      setStudents(uniqueStudents);
     }
 
     setLoadingStudents(false);
   };
 
-  const fetchAssignedEnrollmentFees = async (enrollmentId) => {
+  const fetchAssignedFees = async (enrollmentId) => {
     const { data, error } = await supabase
       .from('student_fees')
       .select(studentFeeSelect)
@@ -127,14 +132,10 @@ function PaymentsPage() {
       throw error;
     }
 
-    return (data || []).filter((studentFee) => isEnrollmentFee(studentFee.fees));
+    return data || [];
   };
 
-  const ensureEnrollmentFeeAssigned = async (enrollment, assignedEnrollmentFees) => {
-    if (assignedEnrollmentFees.length > 0) {
-      return assignedEnrollmentFees;
-    }
-
+  const ensureFeesAssigned = async (enrollment, assignedFees) => {
     const { data: activeFees, error: activeFeeError } = await supabase
       .from('fees')
       .select('id, fee_name, fee_type, amount')
@@ -146,33 +147,48 @@ function PaymentsPage() {
       throw activeFeeError;
     }
 
-    const enrollmentFee = (activeFees || []).find(isEnrollmentFee);
-
-    if (!enrollmentFee) {
-      return assignedEnrollmentFees;
+    if ((activeFees || []).length === 0) {
+      return assignedFees;
     }
 
-    const { data: insertedFee, error: insertError } = await supabase
+    const assignedFeeIds = new Set((assignedFees || []).map((studentFee) => studentFee.fee_id));
+    const missingFees = (activeFees || []).filter((fee) => !assignedFeeIds.has(fee.id));
+
+    if (missingFees.length === 0) {
+      return assignedFees;
+    }
+
+    const feePayload = missingFees.map((fee) => ({
+      student_id: enrollment.student_id,
+      enrollment_id: enrollment.id,
+      fee_id: fee.id,
+      amount: fee.amount,
+      status: 'unpaid',
+    }));
+
+    const { data: insertedFees, error: insertError } = await supabase
       .from('student_fees')
-      .insert({
-        student_id: enrollment.student_id,
-        enrollment_id: enrollment.id,
-        fee_id: enrollmentFee.id,
-        amount: enrollmentFee.amount,
-        status: 'unpaid',
-      })
+      .insert(feePayload)
       .select(studentFeeSelect)
-      .single();
+      .order('created_at', { ascending: true });
 
     if (insertError) {
       if (insertError.code === '23505') {
-        return fetchAssignedEnrollmentFees(enrollment.id);
+        return fetchAssignedFees(enrollment.id);
       }
 
       throw insertError;
     }
 
-    return insertedFee ? [insertedFee] : assignedEnrollmentFees;
+    if (!insertedFees || insertedFees.length === 0) {
+      return fetchAssignedFees(enrollment.id);
+    }
+
+    return [...assignedFees, ...insertedFees].sort(
+      (firstFee, secondFee) =>
+        new Date(firstFee.created_at || 0).getTime() -
+        new Date(secondFee.created_at || 0).getTime(),
+    );
   };
 
   const fetchStudentAccount = async (student) => {
@@ -224,8 +240,8 @@ function PaymentsPage() {
 
       setActiveEnrollment(selectedEnrollment);
 
-      const [assignedEnrollmentFees, paymentsResult] = await Promise.all([
-        fetchAssignedEnrollmentFees(selectedEnrollment.id),
+      const [assignedFees, paymentsResult] = await Promise.all([
+        fetchAssignedFees(selectedEnrollment.id),
         supabase
           .from('payments')
           .select(
@@ -252,9 +268,9 @@ function PaymentsPage() {
         throw paymentsResult.error;
       }
 
-      const enrollmentFees = await ensureEnrollmentFeeAssigned(
+      const enrollmentFees = await ensureFeesAssigned(
         selectedEnrollment,
-        assignedEnrollmentFees,
+        assignedFees,
       );
 
       setStudentFees(enrollmentFees);
@@ -582,8 +598,9 @@ function PaymentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        sticky
         title="Payments"
-        description="Record enrollment fee payments and compute student balances."
+        description="Record student fee payments and compute balances across all assessed fees."
       />
 
       <NotificationToast
@@ -650,7 +667,7 @@ function PaymentsPage() {
         <div className="space-y-6">
           {!selectedStudent ? (
             <section className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-12 text-center text-sm text-slate-500">
-              Select a student to view enrollment fee payments and balance.
+              Select a student to view assessed fees, payments, and balances.
             </section>
           ) : loadingAccount ? (
             <section className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">
@@ -680,69 +697,14 @@ function PaymentsPage() {
                 </div>
               </section>
 
-              <section className="grid gap-4 md:grid-cols-3">
-                <SummaryCard label="Enrollment Fee" value={formatCurrency(totalAssessedFees)} />
-                <SummaryCard label="Total Payments" value={formatCurrency(totalPayments)} />
-                <SummaryCard label="Remaining Balance" value={formatCurrency(remainingBalance)} />
-              </section>
-
-              <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-base font-semibold text-slate-950">Enrollment Fee</h3>
-                {assessedFeesWithBalances.length === 0 ? (
-                  <p className="mt-4 rounded-md border border-dashed border-slate-300 px-3 py-8 text-center text-sm text-slate-500">
-                    No enrollment fee found. Assign the enrollment fee from the Enrollment module first.
-                  </p>
-                ) : (
-                  <div className="mt-4 w-full overflow-x-auto">
-                    <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
-                      <thead className="bg-slate-50">
-                        <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          <th className="px-3 py-3">Fee</th>
-                          <th className="px-3 py-3 text-right">Assessed</th>
-                          <th className="px-3 py-3 text-right">Paid</th>
-                          <th className="px-3 py-3 text-right">Balance</th>
-                          <th className="px-3 py-3">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {assessedFeesWithBalances.map((studentFee) => (
-                          <tr key={studentFee.id}>
-                            <td className="px-3 py-3">
-                              <p className="font-medium text-slate-900">
-                                {studentFee.fees?.fee_name || 'Unknown fee'}
-                              </p>
-                              <p className="mt-1 text-xs text-slate-500">
-                                {studentFee.fees?.fee_type || 'Not set'}
-                              </p>
-                            </td>
-                            <td className="px-3 py-3 text-right font-semibold text-slate-900">
-                              {formatCurrency(studentFee.amount)}
-                            </td>
-                            <td className="px-3 py-3 text-right text-slate-600">
-                              {formatCurrency(studentFee.paidAmount)}
-                            </td>
-                            <td className="px-3 py-3 text-right text-slate-600">
-                              {formatCurrency(studentFee.balance)}
-                            </td>
-                            <td className="px-3 py-3">
-                              <StatusBadge status={studentFee.status} />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
-
               <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                 <h3 className="text-base font-semibold text-slate-950">Record Payment</h3>
                 <form onSubmit={handleRecordPayment} className="mt-4 grid gap-4 lg:grid-cols-2">
                   <div className="lg:col-span-2">
-                    <p className="text-sm font-medium text-slate-700">Enrollment Fee to Pay</p>
+                    <p className="text-sm font-medium text-slate-700">Fees to Pay</p>
                     {assessedFeesWithBalances.length === 0 ? (
                       <p className="mt-2 rounded-md border border-dashed border-slate-300 px-3 py-6 text-center text-sm text-slate-500">
-                        No enrollment fee is available for payment.
+                        No active fees match this student's school year and grade level yet.
                       </p>
                     ) : (
                       <div className="mt-2 w-full overflow-x-auto rounded-md border border-slate-200">

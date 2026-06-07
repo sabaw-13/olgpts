@@ -202,7 +202,7 @@ npm run preview
 Use this checklist after setup:
 
 - Log in as Admin.
-- Confirm Admin can access Dashboard, Students, School Setup, Enrollment Fee, Enrollment, Payments, Receipts, Reports, Staff Management, and Settings.
+- Confirm Admin can access Dashboard, Students, School Setup, Enrollment Fee, Enrollment, Payments, Receipts, Reports, and Staff Management.
 - Create or update a student record.
 - Create school year, grade level, and section records.
 - Create an enrollment fee.

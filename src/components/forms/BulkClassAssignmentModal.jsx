@@ -96,10 +96,10 @@ function BulkClassAssignmentModal({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-3 py-4 sm:items-center sm:px-4 sm:py-6">
       <div className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white shadow-xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-950">Assign Class</h3>
+        <div>
+            <h3 className="text-lg font-bold text-slate-950">Assign Unassigned Students</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Assign students without a class section to one class.
+              Assign all pending or enrolled students without a class section to one class at once.
             </p>
           </div>
 
@@ -199,7 +199,7 @@ function BulkClassAssignmentModal({
               className="inline-flex items-center justify-center gap-2 rounded-md bg-[#f6bd2b] px-4 py-2 text-sm font-semibold text-[#132a63] hover:bg-[#d9a515] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
             >
               <UsersRound size={16} />
-              {isSaving ? 'Assigning...' : 'Assign Class'}
+              {isSaving ? 'Assigning...' : 'Assign All to Class'}
             </button>
           </div>
         </form>

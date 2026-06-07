@@ -11,7 +11,6 @@ import ReceiptsPage from '../pages/receipts/ReceiptsPage.jsx';
 import ReportsPage from '../pages/reports/ReportsPage.jsx';
 import SchoolSetupPage from '../pages/school-setup/SchoolSetupPage.jsx';
 import StaffManagementPage from '../pages/staff/StaffManagementPage.jsx';
-import SettingsPage from '../pages/settings/SettingsPage.jsx';
 import NotFoundPage from '../pages/NotFoundPage.jsx';
 
 function HomeRedirect() {
@@ -97,14 +96,6 @@ function AppRoutes() {
           element={
             <RoleBasedRoute allowedRoles={['admin', 'staff']}>
               <StaffManagementPage />
-            </RoleBasedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <RoleBasedRoute allowedRoles={['admin', 'staff']}>
-              <SettingsPage />
             </RoleBasedRoute>
           }
         />

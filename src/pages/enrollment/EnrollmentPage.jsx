@@ -20,6 +20,9 @@ const defaultFilters = {
   status: 'all',
 };
 
+const UNASSIGNED_GRADE_LEVEL_FILTER = 'unassigned-grade-level';
+const UNASSIGNED_SECTION_FILTER = 'unassigned-section';
+
 function normalizeText(value) {
   return String(value || '').toLowerCase();
 }
@@ -147,7 +150,9 @@ function EnrollmentPage({ graduatedOnly = false }) {
     () =>
       sections.filter(
         (section) =>
-          filters.gradeLevelId === 'all' || section.grade_level_id === filters.gradeLevelId,
+          filters.gradeLevelId === 'all' ||
+          filters.gradeLevelId === UNASSIGNED_GRADE_LEVEL_FILTER ||
+          section.grade_level_id === filters.gradeLevelId,
       ),
     [filters.gradeLevelId, sections],
   );
@@ -219,9 +224,14 @@ function EnrollmentPage({ graduatedOnly = false }) {
           enrollment.school_year_id === filters.schoolYearId;
         const matchesGradeLevel =
           filters.gradeLevelId === 'all' ||
-          enrollment.grade_level_id === filters.gradeLevelId;
+          (filters.gradeLevelId === UNASSIGNED_GRADE_LEVEL_FILTER
+            ? !enrollment.grade_level_id
+            : enrollment.grade_level_id === filters.gradeLevelId);
         const matchesSection =
-          filters.sectionId === 'all' || enrollment.section_id === filters.sectionId;
+          filters.sectionId === 'all' ||
+          (filters.sectionId === UNASSIGNED_SECTION_FILTER
+            ? !enrollment.section_id
+            : enrollment.section_id === filters.sectionId);
         const matchesStatus =
           filters.status === 'all' || enrollment.enrollment_status === filters.status;
 
@@ -764,45 +774,45 @@ function EnrollmentPage({ graduatedOnly = false }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <PageHeader
-          title={graduatedOnly ? 'Graduated Students' : 'Students'}
-          description={
-            graduatedOnly
-              ? 'View students who completed Grade VI and were marked graduated during promotion.'
-              : 'Add students, automatically enroll them, and filter the roster by school year, grade level, and class section.'
-          }
-        />
-
-        {!graduatedOnly ? (
-          <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleOpenClassAssignment}
-            className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#132a63] hover:bg-slate-100"
-          >
-            <UsersRound size={16} />
-            Assign Class
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenBulkAdd}
-            className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#132a63] hover:bg-slate-100"
-          >
-            <Upload size={16} />
-            Import Class List
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenAdd}
-            className="inline-flex w-fit items-center gap-2 rounded-md bg-[#f6bd2b] px-4 py-2 text-sm font-semibold text-[#132a63] hover:bg-[#d9a515]"
-          >
-            <Plus size={16} />
-            Add Student
-          </button>
-          </div>
-        ) : null}
-      </div>
+      <PageHeader
+        sticky
+        title={graduatedOnly ? 'Graduated Students' : 'Students'}
+        description={
+          graduatedOnly
+            ? 'View students who completed Grade VI and were marked graduated during promotion.'
+            : 'Add students, automatically enroll them, and filter the roster by school year, grade level, and class section.'
+        }
+        actions={
+          !graduatedOnly ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleOpenClassAssignment}
+                className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#132a63] hover:bg-slate-100"
+              >
+                <UsersRound size={16} />
+                Assign Unassigned Students
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenBulkAdd}
+                className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#132a63] hover:bg-slate-100"
+              >
+                <Upload size={16} />
+                Import Class List
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="inline-flex w-fit items-center gap-2 rounded-md bg-[#f6bd2b] px-4 py-2 text-sm font-semibold text-[#132a63] hover:bg-[#d9a515]"
+              >
+                <Plus size={16} />
+                Add Student
+              </button>
+            </div>
+          ) : null
+        }
+      />
 
       <NotificationToast
         successMessage={successMessage}
@@ -858,6 +868,7 @@ function EnrollmentPage({ graduatedOnly = false }) {
             aria-label="Filter by grade level"
           >
             <option value="all">All grade levels</option>
+            <option value={UNASSIGNED_GRADE_LEVEL_FILTER}>No assigned grade level</option>
             {gradeLevels.map((gradeLevel) => (
               <option key={gradeLevel.id} value={gradeLevel.id}>
                 {gradeLevel.grade_name}
@@ -873,6 +884,7 @@ function EnrollmentPage({ graduatedOnly = false }) {
             aria-label="Filter by class section"
           >
             <option value="all">All classes</option>
+            <option value={UNASSIGNED_SECTION_FILTER}>No assigned section</option>
             {filteredSections.map((section) => (
               <option key={section.id} value={section.id}>
                 {section.section_name}

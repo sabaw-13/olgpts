@@ -29,6 +29,19 @@ function buildFeeSearchText(fee) {
     .join(' ');
 }
 
+function getFeeMutationErrorMessage(error, fallbackMessage) {
+  const message = error?.message || fallbackMessage;
+
+  if (
+    message.includes('row-level security policy') &&
+    message.includes('"fees"')
+  ) {
+    return 'Your account is not allowed to manage fees. Make sure the signed-in user has an active profile row in Supabase with role "admin" or "staff".';
+  }
+
+  return message;
+}
+
 function FeesPage() {
   const { profile } = useAuth();
   const canManage = ['admin', 'staff'].includes(profile?.role) && profile?.status === 'active';
@@ -202,7 +215,7 @@ function FeesPage() {
       setSelectedFee(null);
       await fetchFeeData();
     } catch (error) {
-      setErrorMessage(error.message || 'Unable to save fee.');
+      setErrorMessage(getFeeMutationErrorMessage(error, 'Unable to save fee.'));
     } finally {
       setIsSaving(false);
     }
@@ -228,7 +241,7 @@ function FeesPage() {
       setSuccessMessage(`Fee marked as ${status}.`);
       await fetchFeeData();
     } catch (error) {
-      setErrorMessage(error.message || 'Unable to update fee status.');
+      setErrorMessage(getFeeMutationErrorMessage(error, 'Unable to update fee status.'));
     } finally {
       setIsSaving(false);
     }
@@ -287,8 +300,10 @@ function FeesPage() {
       await fetchFeeData();
     } catch (error) {
       setErrorMessage(
-        error.message ||
+        getFeeMutationErrorMessage(
+          error,
           'Unable to delete fee. Fees already assigned to students or payments cannot be deleted.',
+        ),
       );
     } finally {
       setIsSaving(false);
@@ -297,23 +312,23 @@ function FeesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <PageHeader
-          title="Fees"
-          description="Create and manage different school fees assigned to each grade level and school year."
-        />
-
-        {canManage ? (
-          <button
-            type="button"
-            onClick={handleOpenAdd}
-            className="inline-flex w-fit items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-          >
-            <Plus size={16} />
-            Add Fee
-          </button>
-        ) : null}
-      </div>
+      <PageHeader
+        sticky
+        title="Fees"
+        description="Create and manage different school fees assigned to each grade level and school year."
+        actions={
+          canManage ? (
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              className="inline-flex w-fit items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+            >
+              <Plus size={16} />
+              Add Fee
+            </button>
+          ) : null
+        }
+      />
 
       <NotificationToast
         successMessage={successMessage}

@@ -538,21 +538,21 @@ function StaffManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <PageHeader
-          title="Staff Management"
-          description="Manage profile roles and access status for OLGTPS admin and staff accounts."
-        />
-
-        <button
-          type="button"
-          onClick={openAddModal}
-          className="inline-flex w-fit items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-        >
-          <Plus size={16} />
-          Create Staff Account
-        </button>
-      </div>
+      <PageHeader
+        sticky
+        title="Staff Management"
+        description="Manage profile roles and access status for OLGTPS admin and staff accounts."
+        actions={
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="inline-flex w-fit items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+          >
+            <Plus size={16} />
+            Create Staff Account
+          </button>
+        }
+      />
 
       <NotificationToast
         successMessage={successMessage}

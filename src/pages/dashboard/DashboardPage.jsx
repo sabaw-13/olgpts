@@ -354,19 +354,21 @@ function DashboardPage() {
         onDismissError={() => setErrorMessage('')}
       />
 
-      <section className="overflow-hidden rounded-lg bg-gradient-to-r from-[#1f3f93] via-[#2655c7] to-[#3678ee] px-5 py-6 text-white shadow-xl shadow-blue-950/20 sm:px-7 sm:py-8">
-        <div className="flex flex-col gap-6">
-          <div className="max-w-3xl">
-            <p className="text-sm font-bold text-[#f5bb2e]">Welcome back,</p>
-            <h3 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-              {profile?.full_name || 'System Administrator'}
-            </h3>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-50 sm:text-base">
-              Manage pupil enrollment activity and student records for the current school year.
-            </p>
+      <div className="sticky top-0 z-30 -mx-3 bg-[#f4f7fc]/95 px-3 py-3 shadow-sm backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <section className="overflow-hidden rounded-lg bg-gradient-to-r from-[#1f3f93] via-[#2655c7] to-[#3678ee] px-5 py-6 text-white shadow-xl shadow-blue-950/20 sm:px-7 sm:py-8">
+          <div className="flex flex-col gap-6">
+            <div className="max-w-3xl">
+              <p className="text-sm font-bold text-[#f5bb2e]">Welcome back,</p>
+              <h3 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+                {profile?.full_name || 'System Administrator'}
+              </h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-50 sm:text-base">
+                Manage pupil enrollment activity and student records for the current school year.
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       {loading ? (
         <div className="rounded-lg border border-[#d9e3f5] bg-white p-6 text-sm text-slate-600">
