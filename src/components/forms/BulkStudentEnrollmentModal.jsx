@@ -1,3 +1,4 @@
+import { getSchoolDate } from '../../lib/date.js';
 import { Download, Upload, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -44,7 +45,7 @@ function getEmptyForm() {
     school_year_id: '',
     grade_level_id: '',
     section_id: '',
-    enrollment_date: new Date().toISOString().slice(0, 10),
+    enrollment_date: getSchoolDate(),
   };
 }
 

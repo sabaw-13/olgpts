@@ -1,3 +1,4 @@
+import { fetchAllRows } from '../../lib/fetchAllRows.js';
 import { Printer, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import NotificationToast from '../../components/ui/NotificationToast.jsx';
@@ -42,7 +43,7 @@ function ReceiptsPage() {
     setErrorMessage('');
 
     const [paymentsResult, studentFeesResult] = await Promise.all([
-      supabase
+      fetchAllRows(() => supabase
         .from('payments')
         .select(
           `
@@ -67,10 +68,10 @@ function ReceiptsPage() {
         `,
         )
         .order('payment_date', { ascending: false })
-        .order('created_at', { ascending: false }),
-      supabase
+        .order('created_at', { ascending: false })),
+      fetchAllRows(() => supabase
         .from('student_fees')
-        .select('id, enrollment_id, amount, fees (id, fee_name, fee_type)'),
+        .select('id, enrollment_id, amount, fees (id, fee_name, fee_type)')),
     ]);
 
     const queryError = paymentsResult.error || studentFeesResult.error;

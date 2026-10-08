@@ -80,6 +80,11 @@ Use the base project URL only. Do not include `/rest/v1/`.
 
 Do not put the Supabase service role key in frontend code.
 
+The Vite configuration also accepts `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`
+for local setup. Only these public settings are mapped into the browser bundle;
+`SUPABASE_SECRET_KEY`, service role keys, and other server secrets are never mapped.
+You can copy `.env.example` to `.env.local` as a starting point.
+
 ## Database Schema Instructions
 
 Open Supabase SQL Editor and run:
@@ -122,6 +127,46 @@ This file enables Row Level Security for:
 - payment_details
 
 Important: create the first active Admin or Staff account before applying RLS. Otherwise, the frontend may not have an active user able to manage records.
+
+## Payment Integrity Migration (Required for This Version)
+
+After applying the schema and RLS policies, run these files in Supabase SQL Editor:
+
+1. `supabase-integrity-preflight.sql` — read-only checks for duplicate records,
+   missing required fields, invalid amounts, inconsistent enrollment links,
+   incomplete payment allocations, and overpayments.
+2. `supabase-payment-integrity-migration.sql` — adds constraints, validation
+   triggers, protected financial writes, and transactional database functions.
+
+If preflight returns records, review and reconcile them before applying the migration.
+The migration runs inside one transaction and aborts on invalid existing data.
+It does not silently delete duplicates or change historical payment amounts.
+If your SQL session remains in an aborted transaction after an error, run `ROLLBACK`
+before correcting data and rerunning the migration.
+
+This version requires the migration before recording payments, deleting students,
+or creating students with initial enrollments. It uses these database functions:
+
+- `record_payment`: checks the active receiving profile, locks the student's
+  enrollment and assessed fees, checks current balances, and saves the payment,
+  allocations, fee statuses, and enrollment status together. Retrying an unchanged
+  payment request returns the same receipt rather than recording it twice.
+- `delete_unpaid_student`: allows active Admin users to delete an unpaid student
+  and related enrollments/assessments atomically. Students with any payment history
+  cannot be deleted; use the inactive enrollment status instead.
+- `enroll_new_students`: creates students, initial enrollments, and applicable
+  active fee assessments together, including CSV imports. Failed imports roll back
+  completely for both Admin and Staff users.
+
+Direct browser inserts, updates, and deletes on payment tables are blocked.
+Staff users cannot directly delete students. Existing Admin/Staff access to the
+other documented workflows is preserved. Apply the migration after the policy
+files when setting up a fresh database. It is safe to rerun against valid data.
+
+Reports, receipts, enrollment lists, and dashboard reads fetch all pages with a
+stable ID tie-breaker rather than assuming one API response contains every record.
+Separate paginated queries are not a database snapshot; refresh reports after
+concurrent changes before using their totals.
 
 ## How to Create an Admin Account
 
@@ -198,6 +243,22 @@ npm run preview
 ```
 
 ## Testing Instructions
+
+Run the local automated regression checks:
+
+```bash
+npm test
+npm run build
+npm audit
+```
+
+The tests use an isolated PGlite PostgreSQL instance and mock only Supabase's Auth
+schema/roles. They exercise the actual SQL migration, rollback after a failed
+allocation insert, overpayment checks, idempotent retries, permission enforcement,
+protected history, and atomic imports. They also check pagination, Manila date
+boundaries, and CSV escaping. They do not connect to the live Supabase database or
+simulate concurrent PostgreSQL connections. After migration, verify concurrent
+payments and the authenticated browser workflows in a Supabase test environment.
 
 Use this checklist after setup:
 

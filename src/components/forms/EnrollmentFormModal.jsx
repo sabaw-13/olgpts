@@ -1,3 +1,4 @@
+import { getSchoolDate } from '../../lib/date.js';
 import { Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { formatStudentName, sortStudentsByName } from '../../lib/studentName.js';
@@ -8,7 +9,7 @@ const emptyForm = {
   grade_level_id: '',
   section_id: '',
   enrollment_status: 'pending',
-  enrollment_date: new Date().toISOString().slice(0, 10),
+  enrollment_date: getSchoolDate(),
 };
 
 function normalizeText(value) {
@@ -31,7 +32,7 @@ function EnrollmentFormModal({
   onClose,
   onSubmit,
 }) {
-  const [formData, setFormData] = useState(emptyForm);
+  const [formData, setFormData] = useState(() => ({ ...emptyForm, enrollment_date: getSchoolDate() }));
   const [studentSearch, setStudentSearch] = useState('');
   const [validationError, setValidationError] = useState('');
 
@@ -48,7 +49,7 @@ function EnrollmentFormModal({
         section_id: enrollment.section_id || '',
         enrollment_status: enrollment.enrollment_status || 'pending',
         enrollment_date:
-          enrollment.enrollment_date || new Date().toISOString().slice(0, 10),
+          enrollment.enrollment_date || getSchoolDate(),
       });
       setStudentSearch(
         selectedStudent
@@ -56,7 +57,7 @@ function EnrollmentFormModal({
           : '',
       );
     } else {
-      setFormData(emptyForm);
+      setFormData({ ...emptyForm, enrollment_date: getSchoolDate() });
       setStudentSearch('');
     }
 

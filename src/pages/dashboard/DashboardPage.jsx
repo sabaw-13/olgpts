@@ -1,3 +1,4 @@
+import { fetchAllRows } from '../../lib/fetchAllRows.js';
 import { useEffect, useMemo, useState } from 'react';
 import {
   CartesianGrid,
@@ -252,11 +253,11 @@ function DashboardPage() {
 
       try {
         const [enrollmentsResult, gradeLevelsResult, schoolYearsResult] = await Promise.all([
-          supabase
+          fetchAllRows(() => supabase
             .from('enrollments')
-            .select('id, student_id, school_year_id, grade_level_id, enrollment_status'),
-          supabase.from('grade_levels').select('id, grade_name').order('grade_name'),
-          supabase.from('school_years').select('id, school_year, status').order('school_year'),
+            .select('id, student_id, school_year_id, grade_level_id, enrollment_status')),
+          fetchAllRows(() => supabase.from('grade_levels').select('id, grade_name').order('grade_name')),
+          fetchAllRows(() => supabase.from('school_years').select('id, school_year, status').order('school_year')),
         ]);
 
         const queryError =

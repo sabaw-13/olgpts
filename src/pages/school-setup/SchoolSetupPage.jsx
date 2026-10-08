@@ -1,3 +1,4 @@
+import { getSchoolDate } from '../../lib/date.js';
 import { ArrowUpRight, Edit, Plus, Power, Save, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import ConfirmationModal from '../../components/ui/ConfirmationModal.jsx';
@@ -17,7 +18,7 @@ const initialForm = {
 const initialPromotionForm = {
   source_school_year_id: '',
   target_school_year_id: '',
-  enrollment_date: new Date().toISOString().slice(0, 10),
+  enrollment_date: getSchoolDate(),
 };
 
 const fixedGradeSequence = [
@@ -252,6 +253,7 @@ function PromotionModal({
 
       setFormData({
         ...initialPromotionForm,
+        enrollment_date: getSchoolDate(),
         source_school_year_id: activeSchoolYear?.id || '',
       });
       setValidationError('');

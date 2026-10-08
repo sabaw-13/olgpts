@@ -1,5 +1,7 @@
+import { fetchAllRows } from '../../lib/fetchAllRows.js';
+import { getSchoolDate } from '../../lib/date.js';
 import { Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import NotificationToast from '../../components/ui/NotificationToast.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import useAuth from '../../hooks/useAuth.js';
@@ -11,11 +13,11 @@ const currencyFormatter = new Intl.NumberFormat('en-PH', {
   currency: 'PHP',
 });
 
-const initialPaymentForm = {
+const getInitialPaymentForm = () => ({
   payment_method: 'Cash',
   remarks: '',
-  payment_date: new Date().toISOString().slice(0, 10),
-};
+  payment_date: getSchoolDate(),
+});
 
 function formatCurrency(value) {
   return currencyFormatter.format(Number(value || 0));
@@ -23,21 +25,6 @@ function formatCurrency(value) {
 
 function normalizeText(value) {
   return String(value || '').toLowerCase();
-}
-
-function generateReceiptNumber() {
-  const date = new Date();
-  const datePart = date.toISOString().slice(0, 10).replaceAll('-', '');
-  const timePart = String(date.getTime()).slice(-6);
-  const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
-
-  return `OLGTPS-${datePart}-${timePart}-${randomPart}`;
-}
-
-function isEnrollmentFee(fee) {
-  const text = `${fee?.fee_name || ''} ${fee?.fee_type || ''}`.toLowerCase();
-
-  return text.includes('enrollment');
 }
 
 const studentFeeSelect = `
@@ -53,6 +40,9 @@ const studentFeeSelect = `
 
 function PaymentsPage() {
   const { profile } = useAuth();
+  const accountRequest = useRef(0);
+  const savingPayment = useRef(false);
+  const paymentAttempt = useRef(null);
   const [students, setStudents] = useState([]);
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -60,7 +50,7 @@ function PaymentsPage() {
   const [studentFees, setStudentFees] = useState([]);
   const [payments, setPayments] = useState([]);
   const [paymentDetails, setPaymentDetails] = useState([]);
-  const [paymentForm, setPaymentForm] = useState(initialPaymentForm);
+  const [paymentForm, setPaymentForm] = useState(getInitialPaymentForm);
   const [selectedFeePayments, setSelectedFeePayments] = useState({});
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [loadingAccount, setLoadingAccount] = useState(false);
@@ -72,7 +62,7 @@ function PaymentsPage() {
     setLoadingStudents(true);
     setErrorMessage('');
 
-    const { data, error } = await supabase
+    const { data, error } = await fetchAllRows(() => supabase
       .from('enrollments')
       .select(
         `
@@ -83,7 +73,7 @@ function PaymentsPage() {
         students (id, lrn, first_name, middle_name, last_name)
       `,
       )
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }));
 
     if (error) {
       setErrorMessage(error.message);
@@ -99,11 +89,11 @@ function PaymentsPage() {
           return;
         }
 
-        seenStudentIds.add(student.id);
-
         if (!['pending', 'enrolled'].includes(enrollment.enrollment_status)) {
           return;
         }
+
+        seenStudentIds.add(student.id);
 
         uniqueStudents.push(student);
       });
@@ -122,11 +112,11 @@ function PaymentsPage() {
   };
 
   const fetchAssignedFees = async (enrollmentId) => {
-    const { data, error } = await supabase
+    const { data, error } = await fetchAllRows(() => supabase
       .from('student_fees')
       .select(studentFeeSelect)
       .eq('enrollment_id', enrollmentId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true }));
 
     if (error) {
       throw error;
@@ -136,12 +126,14 @@ function PaymentsPage() {
   };
 
   const ensureFeesAssigned = async (enrollment, assignedFees) => {
-    const { data: activeFees, error: activeFeeError } = await supabase
+    const { data: activeFees, error: activeFeeError } = await fetchAllRows(() => supabase
       .from('fees')
       .select('id, fee_name, fee_type, amount')
       .eq('school_year_id', enrollment.school_year_id)
       .eq('status', 'active')
-      .or(`grade_level_id.eq.${enrollment.grade_level_id},grade_level_id.is.null`);
+      .or(enrollment.grade_level_id
+        ? `grade_level_id.eq.${enrollment.grade_level_id},grade_level_id.is.null`
+        : 'grade_level_id.is.null'));
 
     if (activeFeeError) {
       throw activeFeeError;
@@ -184,11 +176,7 @@ function PaymentsPage() {
       return fetchAssignedFees(enrollment.id);
     }
 
-    return [...assignedFees, ...insertedFees].sort(
-      (firstFee, secondFee) =>
-        new Date(firstFee.created_at || 0).getTime() -
-        new Date(secondFee.created_at || 0).getTime(),
-    );
+    return fetchAssignedFees(enrollment.id);
   };
 
   const fetchStudentAccount = async (student) => {
@@ -196,9 +184,10 @@ function PaymentsPage() {
       return;
     }
 
+    const requestId = ++accountRequest.current;
+    const isCurrentRequest = () => accountRequest.current === requestId;
     setLoadingAccount(true);
     setErrorMessage('');
-    setSuccessMessage('');
     setActiveEnrollment(null);
     setStudentFees([]);
     setPayments([]);
@@ -225,8 +214,11 @@ function PaymentsPage() {
         )
         .eq('student_id', student.id)
         .in('enrollment_status', ['pending', 'enrolled'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(1);
 
+      if (!isCurrentRequest()) return;
       if (enrollmentError) {
         throw enrollmentError;
       }
@@ -242,7 +234,7 @@ function PaymentsPage() {
 
       const [assignedFees, paymentsResult] = await Promise.all([
         fetchAssignedFees(selectedEnrollment.id),
-        supabase
+        fetchAllRows(() => supabase
           .from('payments')
           .select(
             `
@@ -261,9 +253,10 @@ function PaymentsPage() {
           )
           .eq('enrollment_id', selectedEnrollment.id)
           .order('payment_date', { ascending: false })
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })),
       ]);
 
+      if (!isCurrentRequest()) return;
       if (paymentsResult.error) {
         throw paymentsResult.error;
       }
@@ -273,17 +266,19 @@ function PaymentsPage() {
         assignedFees,
       );
 
+      if (!isCurrentRequest()) return;
       setStudentFees(enrollmentFees);
       setPayments(paymentsResult.data || []);
 
       const paymentIds = (paymentsResult.data || []).map((payment) => payment.id);
 
       if (paymentIds.length > 0) {
-        const { data: details, error: detailsError } = await supabase
+        const { data: details, error: detailsError } = await fetchAllRows(() => supabase
           .from('payment_details')
-          .select('id, payment_id, fee_id, amount_paid, created_at')
-          .in('payment_id', paymentIds);
+          .select('id, payment_id, fee_id, amount_paid, created_at, payments!inner(enrollment_id)')
+          .eq('payments.enrollment_id', selectedEnrollment.id));
 
+        if (!isCurrentRequest()) return;
         if (detailsError) {
           throw detailsError;
         }
@@ -291,14 +286,21 @@ function PaymentsPage() {
         setPaymentDetails(details || []);
       }
     } catch (error) {
-      setErrorMessage(error.message || 'Unable to load student payment account.');
+      if (isCurrentRequest()) {
+        setActiveEnrollment(null);
+        setStudentFees([]);
+        setPayments([]);
+        setPaymentDetails([]);
+        setErrorMessage(error.message || 'Unable to load student payment account.');
+      }
     } finally {
-      setLoadingAccount(false);
+      if (isCurrentRequest()) setLoadingAccount(false);
     }
   };
 
   useEffect(() => {
     fetchStudents();
+    return () => { accountRequest.current += 1; };
   }, []);
 
   const filteredStudents = useMemo(() => {
@@ -339,7 +341,7 @@ function PaymentsPage() {
         return {
           ...studentFee,
           paidAmount,
-          balance: Math.max(amount - paidAmount, 0),
+          balance: Math.max(Math.round(amount * 100) - Math.round(paidAmount * 100), 0) / 100,
         };
       }),
     [paidByFeeId, studentFees],
@@ -359,7 +361,7 @@ function PaymentsPage() {
     [assessedFeesWithBalances],
   );
 
-  const remainingBalance = Math.max(totalAssessedFees - totalPayments, 0);
+  const remainingBalance = Math.max(Math.round(totalAssessedFees * 100) - Math.round(totalPayments * 100), 0) / 100;
 
   const selectedFeeAllocations = useMemo(
     () =>
@@ -378,15 +380,18 @@ function PaymentsPage() {
     () =>
       selectedFeeAllocations.reduce(
         (total, allocation) =>
-          total + (Number.isFinite(allocation.amount) ? allocation.amount : 0),
+          total + (Number.isFinite(allocation.amount) ? Math.round(allocation.amount * 100) : 0),
         0,
-      ),
+      ) / 100,
     [selectedFeeAllocations],
   );
 
   const handleSelectStudent = async (student) => {
+    if (savingPayment.current) return;
+    paymentAttempt.current = null;
+    setSuccessMessage('');
     setSelectedStudent(student);
-    setPaymentForm(initialPaymentForm);
+    setPaymentForm(getInitialPaymentForm());
     setSelectedFeePayments({});
     await fetchStudentAccount(student);
   };
@@ -421,71 +426,13 @@ function PaymentsPage() {
     }));
   };
 
-  const updateStudentFeeStatuses = async (allocations) => {
-    const updates = allocations.map((allocation) => {
-      const studentFee = assessedFeesWithBalances.find(
-        (fee) => fee.fee_id === allocation.fee_id,
-      );
-      const newPaidAmount = (studentFee?.paidAmount || 0) + allocation.amount_paid;
-      const totalFeeAmount = Number(studentFee?.amount || 0);
-      const status =
-        newPaidAmount <= 0
-          ? 'unpaid'
-          : newPaidAmount >= totalFeeAmount
-            ? 'paid'
-            : 'partial';
-
-      return supabase
-        .from('student_fees')
-        .update({ status })
-        .eq('id', studentFee.id);
-    });
-
-    const results = await Promise.all(updates);
-    const updateError = results.find((result) => result.error)?.error;
-
-    if (updateError) {
-      throw updateError;
-    }
-  };
-
-  const updateEnrollmentStatusAfterPayment = async (allocations) => {
-    const enrollmentFee = assessedFeesWithBalances.find((studentFee) =>
-      isEnrollmentFee(studentFee.fees),
-    );
-
-    if (!enrollmentFee || activeEnrollment?.enrollment_status === 'enrolled') {
-      return;
-    }
-
-    const enrollmentFeeAllocation = allocations.find(
-      (allocation) => allocation.fee_id === enrollmentFee.fee_id,
-    );
-    const paidAmountAfterPayment =
-      (enrollmentFee.paidAmount || 0) + (enrollmentFeeAllocation?.amount_paid || 0);
-
-    if (paidAmountAfterPayment < Number(enrollmentFee.amount || 0)) {
-      return;
-    }
-
-    const { error } = await supabase
-      .from('enrollments')
-      .update({ enrollment_status: 'enrolled' })
-      .eq('id', activeEnrollment.id);
-
-    if (error) {
-      throw error;
-    }
-
-    return true;
-  };
-
   const handleRecordPayment = async (event) => {
     event.preventDefault();
+    if (savingPayment.current || loadingAccount) return;
     setErrorMessage('');
     setSuccessMessage('');
 
-    if (!selectedStudent || !activeEnrollment) {
+    if (!selectedStudent || !activeEnrollment || activeEnrollment.student_id !== selectedStudent.id) {
       setErrorMessage('Select a student with an active enrollment first.');
       return;
     }
@@ -540,57 +487,35 @@ function PaymentsPage() {
       amount_paid: allocation.amount,
     }));
 
+    savingPayment.current = true;
     setIsSaving(true);
-
+    const payload = {
+      p_enrollment_id: activeEnrollment.id,
+      p_allocations: allocations,
+      p_payment_date: paymentForm.payment_date,
+      p_remarks: paymentForm.remarks.trim(),
+    };
     try {
-      const receiptNumber = generateReceiptNumber();
-      const { data: payment, error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          student_id: selectedStudent.id,
-          enrollment_id: activeEnrollment.id,
-          receipt_number: receiptNumber,
-          payment_amount: paymentAmount,
-          payment_method: 'Cash',
-          remarks: paymentForm.remarks.trim(),
-          received_by: profile.id,
-          payment_date: paymentForm.payment_date,
-        })
-        .select('id, receipt_number')
-        .single();
-
-      if (paymentError) {
-        throw paymentError;
+      const fingerprint = JSON.stringify(payload);
+      if (paymentAttempt.current?.fingerprint !== fingerprint) {
+        paymentAttempt.current = { fingerprint, requestId: crypto.randomUUID() };
       }
-
-      const paymentDetailPayload = allocations.map((allocation) => ({
-        payment_id: payment.id,
-        fee_id: allocation.fee_id,
-        amount_paid: allocation.amount_paid,
-      }));
-
-      const { error: detailsError } = await supabase
-        .from('payment_details')
-        .insert(paymentDetailPayload);
-
-      if (detailsError) {
-        throw detailsError;
-      }
-
-      await updateStudentFeeStatuses(allocations);
-      const enrollmentMarkedAsEnrolled = await updateEnrollmentStatusAfterPayment(allocations);
-
-      setSuccessMessage(
-        enrollmentMarkedAsEnrolled
-          ? `Payment saved successfully. Enrollment marked as enrolled. Receipt No: ${payment.receipt_number}`
-          : `Payment saved successfully. Receipt No: ${payment.receipt_number}`,
-      );
-      setPaymentForm(initialPaymentForm);
+      const { data: payment, error } = await supabase.rpc('record_payment', {
+        ...payload,
+        p_request_id: paymentAttempt.current.requestId,
+      });
+      if (error) throw error;
+      paymentAttempt.current = null;
+      setSuccessMessage(`Payment saved successfully. Receipt No: ${payment.receipt_number}`);
+      setPaymentForm(getInitialPaymentForm());
       setSelectedFeePayments({});
       await fetchStudentAccount(selectedStudent);
     } catch (error) {
-      setErrorMessage(error.message || 'Unable to record payment.');
+      setErrorMessage(error.code === 'PGRST202'
+        ? 'Payment setup is pending. Apply the payment integrity migration in Supabase first.'
+        : error.message || 'Unable to record payment.');
     } finally {
+      savingPayment.current = false;
       setIsSaving(false);
     }
   };
@@ -643,6 +568,7 @@ function PaymentsPage() {
                   <button
                     key={student.id}
                     type="button"
+                    disabled={isSaving}
                     onClick={() => handleSelectStudent(student)}
                     className={[
                       'w-full rounded-md border px-3 py-3 text-left text-sm transition',
@@ -798,6 +724,7 @@ function PaymentsPage() {
                     Payment Date
                     <input
                       type="date"
+                      disabled={isSaving}
                       name="payment_date"
                       value={paymentForm.payment_date}
                       onChange={handlePaymentFormChange}
@@ -809,6 +736,7 @@ function PaymentsPage() {
                   <label className="block text-sm font-medium text-slate-700 lg:col-span-2">
                     Remarks
                     <textarea
+                      disabled={isSaving}
                       name="remarks"
                       value={paymentForm.remarks}
                       onChange={handlePaymentFormChange}

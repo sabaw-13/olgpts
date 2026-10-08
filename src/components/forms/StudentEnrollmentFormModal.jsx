@@ -1,3 +1,4 @@
+import { getSchoolDate } from '../../lib/date.js';
 import { X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -15,7 +16,7 @@ const emptyForm = {
   school_year_id: '',
   grade_level_id: '',
   section_id: '',
-  enrollment_date: new Date().toISOString().slice(0, 10),
+  enrollment_date: getSchoolDate(),
 };
 
 function StudentEnrollmentFormModal({
@@ -27,12 +28,12 @@ function StudentEnrollmentFormModal({
   onClose,
   onSubmit,
 }) {
-  const [formData, setFormData] = useState(emptyForm);
+  const [formData, setFormData] = useState(() => ({ ...emptyForm, enrollment_date: getSchoolDate() }));
   const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(emptyForm);
+      setFormData({ ...emptyForm, enrollment_date: getSchoolDate() });
       setValidationError('');
     }
   }, [isOpen]);

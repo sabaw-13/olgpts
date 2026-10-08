@@ -1,3 +1,4 @@
+import { fetchAllRows } from '../../lib/fetchAllRows.js';
 import { Plus, Search, Upload, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import BulkClassAssignmentModal from '../../components/forms/BulkClassAssignmentModal.jsx';
@@ -73,7 +74,7 @@ function EnrollmentPage({ graduatedOnly = false }) {
       sectionsResult,
       studentFeesResult,
     ] = await Promise.all([
-      supabase
+      fetchAllRows(() => supabase
         .from('enrollments')
         .select(
           `
@@ -91,27 +92,27 @@ function EnrollmentPage({ graduatedOnly = false }) {
           sections (id, section_name, grade_level_id, status)
         `,
         )
-        .order('created_at', { ascending: false }),
-      supabase
+        .order('created_at', { ascending: false })),
+      fetchAllRows(() => supabase
         .from('students')
         .select('id, lrn, first_name, middle_name, last_name')
         .order('last_name', { ascending: true })
-        .order('first_name', { ascending: true }),
-      supabase
+        .order('first_name', { ascending: true })),
+      fetchAllRows(() => supabase
         .from('school_years')
         .select('id, school_year, status')
-        .order('school_year', { ascending: false }),
-      supabase
+        .order('school_year', { ascending: false })),
+      fetchAllRows(() => supabase
         .from('grade_levels')
         .select('id, grade_name, status')
-        .order('grade_name', { ascending: true }),
-      supabase
+        .order('grade_name', { ascending: true })),
+      fetchAllRows(() => supabase
         .from('sections')
         .select('id, section_name, grade_level_id, status')
-        .order('section_name', { ascending: true }),
-      supabase
+        .order('section_name', { ascending: true })),
+      fetchAllRows(() => supabase
         .from('student_fees')
-        .select('id, enrollment_id, student_id, fee_id, amount, status, fees (id, fee_name, fee_type)'),
+        .select('id, enrollment_id, student_id, fee_id, amount, status, fees (id, fee_name, fee_type)')),
     ]);
 
     const queryError =
@@ -428,9 +429,6 @@ function EnrollmentPage({ graduatedOnly = false }) {
     setErrorMessage('');
     setSuccessMessage('');
 
-    let insertedStudentId = null;
-    let insertedEnrollmentId = null;
-
     try {
       const { data: existingStudent, error: duplicateError } = await supabase
         .from('students')
@@ -446,76 +444,20 @@ function EnrollmentPage({ graduatedOnly = false }) {
         throw new Error('A student with this LRN or Student ID already exists.');
       }
 
-      const { data: savedStudent, error: studentError } = await supabase
-        .from('students')
-        .insert(student)
-        .select('id')
-        .single();
-
-      if (studentError) {
-        throw studentError;
-      }
-
-      insertedStudentId = savedStudent.id;
-
-      const enrollmentPayload = {
-        ...enrollment,
-        student_id: insertedStudentId,
-      };
-
-      const { data: savedEnrollment, error: enrollmentError } = await supabase
-        .from('enrollments')
-        .insert(enrollmentPayload)
-        .select('id')
-        .single();
-
-      if (enrollmentError) {
-        throw enrollmentError;
-      }
-
-      insertedEnrollmentId = savedEnrollment.id;
-
-      const { data: activeFees, error: feeError } = await supabase
-        .from('fees')
-        .select('id, amount')
-        .eq('school_year_id', enrollment.school_year_id)
-        .eq('status', 'active')
-        .or(`grade_level_id.eq.${enrollment.grade_level_id},grade_level_id.is.null`);
-
-      if (feeError) {
-        throw feeError;
-      }
-
-      if ((activeFees || []).length > 0) {
-        const feePayload = activeFees.map((fee) => ({
-          student_id: insertedStudentId,
-          enrollment_id: insertedEnrollmentId,
-          fee_id: fee.id,
-          amount: fee.amount,
-          status: 'unpaid',
-        }));
-
-        const { error: studentFeeError } = await supabase
-          .from('student_fees')
-          .insert(feePayload);
-
-        if (studentFeeError) {
-          throw studentFeeError;
-        }
-      }
+      const { error } = await supabase.rpc('enroll_new_students', {
+        p_students: [student],
+        p_school_year_id: enrollment.school_year_id,
+        p_grade_level_id: enrollment.grade_level_id || null,
+        p_section_id: enrollment.section_id || null,
+        p_enrollment_date: enrollment.enrollment_date,
+        p_enrollment_status: enrollment.enrollment_status,
+      });
+      if (error) throw error;
 
       setSuccessMessage('Student added and automatically enrolled successfully.');
       setIsStudentFormOpen(false);
       await fetchEnrollmentData();
     } catch (error) {
-      if (insertedEnrollmentId) {
-        await supabase.from('enrollments').delete().eq('id', insertedEnrollmentId);
-      }
-
-      if (insertedStudentId) {
-        await supabase.from('students').delete().eq('id', insertedStudentId);
-      }
-
       setErrorMessage(error.message || 'Unable to add and enroll student.');
     } finally {
       setIsSaving(false);
@@ -526,9 +468,6 @@ function EnrollmentPage({ graduatedOnly = false }) {
     setIsSaving(true);
     setErrorMessage('');
     setSuccessMessage('');
-
-    let insertedStudentIds = [];
-    let insertedEnrollmentIds = [];
 
     try {
       const lrns = bulkStudents.map((student) => student.lrn);
@@ -549,81 +488,20 @@ function EnrollmentPage({ graduatedOnly = false }) {
         );
       }
 
-      const { data: savedStudents, error: studentError } = await supabase
-        .from('students')
-        .insert(bulkStudents)
-        .select('id, lrn');
-
-      if (studentError) {
-        throw studentError;
-      }
-
-      insertedStudentIds = (savedStudents || []).map((student) => student.id);
-
-      const studentIdByLrn = new Map(
-        (savedStudents || []).map((student) => [student.lrn, student.id]),
-      );
-
-      const enrollmentPayload = bulkStudents.map((student) => ({
-        ...enrollment,
-        student_id: studentIdByLrn.get(student.lrn),
-      }));
-
-      const { data: savedEnrollments, error: enrollmentError } = await supabase
-        .from('enrollments')
-        .insert(enrollmentPayload)
-        .select('id, student_id');
-
-      if (enrollmentError) {
-        throw enrollmentError;
-      }
-
-      insertedEnrollmentIds = (savedEnrollments || []).map((savedEnrollment) => savedEnrollment.id);
-
-      const { data: activeFees, error: feeError } = await supabase
-        .from('fees')
-        .select('id, amount')
-        .eq('school_year_id', enrollment.school_year_id)
-        .eq('status', 'active')
-        .or(`grade_level_id.eq.${enrollment.grade_level_id},grade_level_id.is.null`);
-
-      if (feeError) {
-        throw feeError;
-      }
-
-      if ((activeFees || []).length > 0 && (savedEnrollments || []).length > 0) {
-        const feePayload = savedEnrollments.flatMap((savedEnrollment) =>
-          activeFees.map((fee) => ({
-            student_id: savedEnrollment.student_id,
-            enrollment_id: savedEnrollment.id,
-            fee_id: fee.id,
-            amount: fee.amount,
-            status: 'unpaid',
-          })),
-        );
-
-        const { error: studentFeeError } = await supabase
-          .from('student_fees')
-          .insert(feePayload);
-
-        if (studentFeeError) {
-          throw studentFeeError;
-        }
-      }
+      const { error } = await supabase.rpc('enroll_new_students', {
+        p_students: bulkStudents,
+        p_school_year_id: enrollment.school_year_id,
+        p_grade_level_id: enrollment.grade_level_id || null,
+        p_section_id: enrollment.section_id || null,
+        p_enrollment_date: enrollment.enrollment_date,
+        p_enrollment_status: enrollment.enrollment_status,
+      });
+      if (error) throw error;
 
       setSuccessMessage(`${bulkStudents.length} students added and enrolled successfully.`);
       setIsBulkFormOpen(false);
       await fetchEnrollmentData();
     } catch (error) {
-      if (insertedEnrollmentIds.length > 0) {
-        await supabase.from('student_fees').delete().in('enrollment_id', insertedEnrollmentIds);
-        await supabase.from('enrollments').delete().in('id', insertedEnrollmentIds);
-      }
-
-      if (insertedStudentIds.length > 0) {
-        await supabase.from('students').delete().in('id', insertedStudentIds);
-      }
-
       setErrorMessage(error.message || 'Unable to import and enroll class list.');
     } finally {
       setIsSaving(false);
@@ -691,76 +569,10 @@ function EnrollmentPage({ graduatedOnly = false }) {
     setSuccessMessage('');
 
     try {
-      const { data: studentEnrollments, error: enrollmentFetchError } = await supabase
-        .from('enrollments')
-        .select('id')
-        .eq('student_id', studentId);
-
-      if (enrollmentFetchError) {
-        throw enrollmentFetchError;
-      }
-
-      const enrollmentIds = (studentEnrollments || []).map((enrollment) => enrollment.id);
-
-      const { data: studentPayments, error: paymentFetchError } = await supabase
-        .from('payments')
-        .select('id')
-        .eq('student_id', studentId);
-
-      if (paymentFetchError) {
-        throw paymentFetchError;
-      }
-
-      const paymentIds = (studentPayments || []).map((payment) => payment.id);
-
-      if (paymentIds.length > 0) {
-        const { error: paymentDetailsError } = await supabase
-          .from('payment_details')
-          .delete()
-          .in('payment_id', paymentIds);
-
-        if (paymentDetailsError) {
-          throw paymentDetailsError;
-        }
-      }
-
-      const { error: paymentsError } = await supabase
-        .from('payments')
-        .delete()
-        .eq('student_id', studentId);
-
-      if (paymentsError) {
-        throw paymentsError;
-      }
-
-      const { error: studentFeesError } = await supabase
-        .from('student_fees')
-        .delete()
-        .eq('student_id', studentId);
-
-      if (studentFeesError) {
-        throw studentFeesError;
-      }
-
-      if (enrollmentIds.length > 0) {
-        const { error: enrollmentsError } = await supabase
-          .from('enrollments')
-          .delete()
-          .in('id', enrollmentIds);
-
-        if (enrollmentsError) {
-          throw enrollmentsError;
-        }
-      }
-
-      const { error: studentError } = await supabase
-        .from('students')
-        .delete()
-        .eq('id', studentId);
-
-      if (studentError) {
-        throw studentError;
-      }
+      const { error } = await supabase.rpc('delete_unpaid_student', {
+        p_student_id: studentId,
+      });
+      if (error) throw error;
 
       setSuccessMessage('Student deleted successfully.');
       setPendingDeleteStudent(null);
@@ -978,7 +790,7 @@ function EnrollmentPage({ graduatedOnly = false }) {
       <ConfirmationModal
         isOpen={Boolean(pendingDeleteStudent)}
         title="Delete student?"
-        message={`This will permanently delete ${formatStudentName(pendingDeleteStudent?.students) || 'this student'} and all related enrollments, fees, and payment records.`}
+        message={`This will permanently delete ${formatStudentName(pendingDeleteStudent?.students) || 'this student'} and related unpaid enrollments and fees. Students with payment history cannot be deleted.`}
         confirmLabel="Delete"
         variant="danger"
         isProcessing={isSaving}

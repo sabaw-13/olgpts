@@ -1,3 +1,5 @@
+import { escapeCsv } from '../../lib/csv.js';
+import { fetchAllRows } from '../../lib/fetchAllRows.js';
 import { Download, Printer, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import NotificationToast from '../../components/ui/NotificationToast.jsx';
@@ -117,15 +119,6 @@ function paymentMatchesReportFilters(payment, filters) {
 }
 
 function downloadCsv(filename, columns, rows) {
-  const escapeCsv = (value) => {
-    const text = String(value ?? '');
-
-    if (text.includes(',') || text.includes('"') || text.includes('\n')) {
-      return `"${text.replaceAll('"', '""')}"`;
-    }
-
-    return text;
-  };
 
   const csvContent = [
     columns.map((column) => escapeCsv(column.label)).join(','),
@@ -180,7 +173,7 @@ function ReportsPage() {
       gradeLevelsResult,
       sectionsResult,
     ] = await Promise.all([
-      supabase
+      fetchAllRows(() => supabase
         .from('enrollments')
         .select(
           `
@@ -198,8 +191,8 @@ function ReportsPage() {
           sections (id, section_name)
         `,
         )
-        .order('created_at', { ascending: false }),
-      supabase
+        .order('created_at', { ascending: false })),
+      fetchAllRows(() => supabase
         .from('payments')
         .select(
           `
@@ -226,8 +219,8 @@ function ReportsPage() {
         `,
         )
         .order('payment_date', { ascending: false })
-        .order('created_at', { ascending: false }),
-      supabase
+        .order('created_at', { ascending: false })),
+      fetchAllRows(() => supabase
         .from('student_fees')
         .select(
           `
@@ -252,10 +245,10 @@ function ReportsPage() {
           ),
           fees (id, fee_name, fee_type)
         `,
-        ),
-      supabase.from('school_years').select('id, school_year').order('school_year'),
-      supabase.from('grade_levels').select('id, grade_name').order('grade_name'),
-      supabase.from('sections').select('id, section_name, grade_level_id').order('section_name'),
+        )),
+      fetchAllRows(() => supabase.from('school_years').select('id, school_year').order('school_year')),
+      fetchAllRows(() => supabase.from('grade_levels').select('id, grade_name').order('grade_name')),
+      fetchAllRows(() => supabase.from('sections').select('id, section_name, grade_level_id').order('section_name')),
     ]);
 
     const queryError =
