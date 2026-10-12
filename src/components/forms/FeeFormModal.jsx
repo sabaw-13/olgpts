@@ -22,6 +22,7 @@ function getDefaultSchoolYearId(schoolYears) {
 
 function FeeFormModal({
   isOpen,
+  inline = false,
   mode,
   fee,
   gradeLevels,
@@ -112,8 +113,8 @@ function FeeFormModal({
   const title = mode === 'edit' ? 'Edit Fee' : 'Add Fee';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-3 py-4 sm:items-center sm:px-4 sm:py-6">
-      <div className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
+    <div className={inline ? "" : "fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-3 py-4 sm:items-center sm:px-4 sm:py-6"}>
+      <div className={inline ? "w-full bg-white" : "max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl"}>
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <h3 className="text-lg font-bold text-slate-950">{title}</h3>
@@ -127,6 +128,7 @@ function FeeFormModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={isSaving}
             className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             aria-label="Close fee form"
           >

@@ -1,4 +1,4 @@
--- Read-only diagnostics. Run before the payment integrity migration.
+  `-- Read-only diagnostics. Run before the payment integrity migration.
 -- An empty result means these data checks passed; no records are modified.
 select 'duplicate profiles.user_id' as issue, user_id::text as record_id
 from public.profiles group by user_id having count(*) > 1

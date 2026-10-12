@@ -38,7 +38,7 @@ const studentFeeSelect = `
   fees (id, fee_name, fee_type)
 `;
 
-function PaymentsPage() {
+function PaymentsPage({ embedded = false, feeRevision = 0, onBusyChange }) {
   const { profile } = useAuth();
   const accountRequest = useRef(0);
   const savingPayment = useRef(false);
@@ -73,7 +73,7 @@ function PaymentsPage() {
         students (id, lrn, first_name, middle_name, last_name)
       `,
       )
-      .order('created_at', { ascending: false }));
+      .order('created_at', { ascending: false }).order('id', { ascending: false }));
 
     if (error) {
       setErrorMessage(error.message);
@@ -89,11 +89,10 @@ function PaymentsPage() {
           return;
         }
 
+        seenStudentIds.add(student.id);
         if (!['pending', 'enrolled'].includes(enrollment.enrollment_status)) {
           return;
         }
-
-        seenStudentIds.add(student.id);
 
         uniqueStudents.push(student);
       });
@@ -213,7 +212,6 @@ function PaymentsPage() {
         `,
         )
         .eq('student_id', student.id)
-        .in('enrollment_status', ['pending', 'enrolled'])
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .limit(1);
@@ -225,7 +223,7 @@ function PaymentsPage() {
 
       const selectedEnrollment = (enrollments || [])[0] || null;
 
-      if (!selectedEnrollment) {
+      if (!selectedEnrollment || !['pending', 'enrolled'].includes(selectedEnrollment.enrollment_status)) {
         setActiveEnrollment(null);
         return;
       }
@@ -302,6 +300,14 @@ function PaymentsPage() {
     fetchStudents();
     return () => { accountRequest.current += 1; };
   }, []);
+
+  useEffect(() => {
+    onBusyChange?.(isSaving);
+  }, [isSaving, onBusyChange]);
+
+  useEffect(() => {
+    if (feeRevision > 0 && selectedStudent) fetchStudentAccount(selectedStudent);
+  }, [feeRevision]);
 
   const filteredStudents = useMemo(() => {
     const normalizedSearch = normalizeText(studentSearch).trim();
@@ -522,11 +528,13 @@ function PaymentsPage() {
 
   return (
     <div className="space-y-6">
+      {!embedded && (
       <PageHeader
         sticky
         title="Payments"
         description="Record student fee payments and compute balances across all assessed fees."
       />
+      )}
 
       <NotificationToast
         successMessage={successMessage}

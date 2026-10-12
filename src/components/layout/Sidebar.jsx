@@ -1,33 +1,61 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Award,
-  Banknote,
-  Building2,
+  BriefcaseBusiness,
+  ChevronsUpDown,
   FileBarChart,
-  Gauge,
   GraduationCap,
+  LayoutDashboard,
   LogOut,
   Menu,
-  ReceiptText,
+  Settings2,
   Users,
-  WalletCards,
+  Wallet,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmationModal from '../ui/ConfirmationModal.jsx';
 import useAuth from '../../hooks/useAuth.js';
 
-const navigationItems = [
-  { label: 'Dashboard', path: '/dashboard', icon: Gauge, roles: ['admin', 'staff'] },
-  { label: 'Students', path: '/students', icon: GraduationCap, roles: ['admin', 'staff'] },
-  { label: 'Graduated Students', path: '/graduated-students', icon: Award, roles: ['admin', 'staff'] },
-  { label: 'School Setup', path: '/school-setup', icon: Building2, roles: ['admin', 'staff'] },
-  { label: 'Fees', path: '/fees', icon: WalletCards, roles: ['admin', 'staff'] },
-  { label: 'Payments', path: '/payments', icon: Banknote, roles: ['admin', 'staff'] },
-  { label: 'Receipts', path: '/receipts', icon: ReceiptText, roles: ['admin', 'staff'] },
-  { label: 'Reports', path: '/reports', icon: FileBarChart, roles: ['admin', 'staff'] },
-  { label: 'Staff Management', path: '/staff', icon: Users, roles: ['admin', 'staff'] },
+const navigationGroups = [
+  {
+    items: [
+      { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'staff'] },
+    ],
+  },
+  {
+    label: 'Students',
+    items: [
+      { label: 'Student records', path: '/students', icon: Users, roles: ['admin', 'staff'] },
+      { label: 'Enrolment', path: '/enrollment', icon: GraduationCap, roles: ['admin', 'staff'] },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { label: 'Payment', path: '/payments', icon: Wallet, roles: ['admin', 'staff'] },
+      { label: 'Reports', path: '/reports', icon: FileBarChart, roles: ['admin', 'staff'] },
+    ],
+  },
+  {
+    label: 'Administration',
+    items: [
+      { label: 'Settings', path: '/settings', icon: Settings2, roles: ['admin', 'staff'] },
+      { label: 'Faculty and Staff', path: '/staff', icon: BriefcaseBusiness, roles: ['admin', 'staff'] },
+    ],
+  },
 ];
+
+const focusRing =
+  'outline-none focus-visible:ring-2 focus-visible:ring-[#f5bb2e] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1f3f93]';
+
+const getInitials = (fullName) =>
+  (fullName || 'OU')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((name) => name[0])
+    .join('')
+    .toUpperCase();
 
 function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
   const { logout, profile } = useAuth();
@@ -36,9 +64,12 @@ function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const visibleNavigationItems = navigationItems.filter((item) =>
-    item.roles.includes(profile?.role),
-  );
+  const visibleNavigationGroups = navigationGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.roles.includes(profile?.role)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -57,65 +88,170 @@ function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
     setIsAccountMenuOpen(false);
   };
 
-  const renderNavigation = ({ onNavigate, isDesktop = false } = {}) => (
-    <nav
-      className={isDesktop ? 'flex flex-col gap-1' : 'space-y-1'}
-      aria-label="Main navigation"
-    >
-      {visibleNavigationItems.map((item) => {
-        const Icon = item.icon;
-
-        return (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={() => {
-              setIsAccountMenuOpen(false);
-              onNavigate?.();
-            }}
-            className={({ isActive }) =>
-              [
-                'flex w-full items-center rounded-md border-l-4 text-sm font-medium transition',
-                isDesktop && !isDesktopExpanded ? 'h-10 justify-center px-0' : 'gap-3 px-3 py-2',
-                isDesktop && isDesktopExpanded ? 'h-11 justify-start' : '',
-                isActive
-                  ? 'border-[#f5bb2e] bg-white/15 text-[#f5bb2e]'
-                  : 'border-transparent text-blue-50 hover:bg-white/10 hover:text-white',
-              ].join(' ')
-            }
-            title={isDesktop ? item.label : undefined}
-          >
-            <Icon aria-hidden="true" className="shrink-0" size={isDesktop ? 20 : 18} />
-            <span
-              className={
-                isDesktop
-                  ? [
-                      'overflow-hidden whitespace-nowrap transition-all duration-200',
-                      isDesktopExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0',
-                    ].join(' ')
-                  : ''
-              }
-            >
-              {item.label}
-            </span>
-          </NavLink>
-        );
-      })}
-    </nav>
-  );
-
   const openLogoutConfirm = () => {
     setIsAccountMenuOpen(false);
     setIsLogoutConfirmOpen(true);
     closeMobileSidebar();
   };
 
-  const renderLogoImage = () => (
-    <img
-      src="/logo.png"
-      alt="OLGTPS logo"
-      className="h-full w-full rounded-full object-contain"
-    />
+  // Labels fade rather than reflow, so icons never shift when the rail expands.
+  const labelClassName = (isExpanded) =>
+    [
+      'min-w-0 truncate whitespace-nowrap transition-opacity duration-200',
+      isExpanded ? 'opacity-100' : 'pointer-events-none opacity-0',
+    ].join(' ');
+
+  const renderNavigation = ({ isExpanded, onNavigate }) => (
+    // Negative margin lets the active rail sit flush against the sidebar edge.
+    <nav
+      className="-mx-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-1"
+      aria-label="Main navigation"
+    >
+      {visibleNavigationGroups.map((group, groupIndex) => (
+        <div key={group.label || 'overview'} className={groupIndex > 0 ? 'mt-4' : ''}>
+          {group.label ? (
+            <div className="relative mb-1 flex h-6 items-center px-[18px]">
+              <span
+                aria-hidden={!isExpanded}
+                className={[
+                  'text-xs font-medium text-blue-200/80',
+                  labelClassName(isExpanded),
+                ].join(' ')}
+              >
+                {group.label}
+              </span>
+              <span
+                aria-hidden="true"
+                className={[
+                  'absolute left-1/2 h-px w-6 -translate-x-1/2 bg-white/20 transition-opacity duration-200',
+                  isExpanded ? 'opacity-0' : 'opacity-100',
+                ].join(' ')}
+              />
+            </div>
+          ) : null}
+
+          <ul className="space-y-0.5">
+            {group.items.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <li key={item.path}>
+                  <NavLink
+                    to={item.path}
+                    title={isExpanded ? undefined : item.label}
+                    onClick={() => {
+                      setIsAccountMenuOpen(false);
+                      onNavigate?.();
+                    }}
+                    className={({ isActive }) =>
+                      [
+                        'group relative flex h-10 items-center gap-3 rounded-lg px-[18px] text-sm transition-colors',
+                        "before:absolute before:-left-3 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-r-full before:bg-[#f5bb2e] before:transition-opacity before:content-['']",
+                        focusRing,
+                        isActive
+                          ? 'bg-white/[0.12] font-semibold text-white before:opacity-100'
+                          : 'font-medium text-blue-100 before:opacity-0 hover:bg-white/[0.07] hover:text-white',
+                      ].join(' ')
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <Icon
+                          aria-hidden="true"
+                          size={20}
+                          strokeWidth={isActive ? 2.25 : 1.75}
+                          className={[
+                            'shrink-0 transition-colors',
+                            isActive ? 'text-[#f5bb2e]' : 'text-blue-200 group-hover:text-white',
+                          ].join(' ')}
+                        />
+                        <span className={labelClassName(isExpanded)}>{item.label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+
+  const renderBrand = ({ isExpanded }) => (
+    <div className="flex min-w-0 items-center gap-3 pl-1.5">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white p-0.5 ring-2 ring-[#f5bb2e]/70">
+        <img
+          src="/logo.png"
+          alt="OLGTPS logo"
+          className="h-full w-full rounded-full object-contain"
+        />
+      </div>
+      <p
+        className={[
+          'text-lg font-bold tracking-wide text-white',
+          labelClassName(isExpanded),
+        ].join(' ')}
+      >
+        OLGTPS
+      </p>
+    </div>
+  );
+
+  const renderAccount = ({ isExpanded }) => (
+    <div className="relative">
+      {isAccountMenuOpen ? (
+        <div
+          role="menu"
+          className="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-white/15 bg-[#132a63] p-1 shadow-lg shadow-blue-950/40"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={openLogoutConfirm}
+            title={isExpanded ? undefined : 'Log out'}
+            className={[
+              'flex h-10 w-full items-center gap-3 rounded-md px-[14px] text-left text-sm font-medium text-blue-50 transition-colors hover:bg-red-500/15 hover:text-red-100',
+              focusRing,
+            ].join(' ')}
+          >
+            <LogOut aria-hidden="true" size={20} strokeWidth={1.75} className="shrink-0" />
+            <span className={labelClassName(isExpanded)}>Log out</span>
+          </button>
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setIsAccountMenuOpen(false);
+        }}
+        aria-haspopup="menu"
+        aria-expanded={isAccountMenuOpen}
+        aria-label="Account menu"
+        className={[
+          'flex w-full min-w-0 items-center gap-3 rounded-lg p-[7px] text-left transition-colors',
+          isAccountMenuOpen ? 'bg-white/[0.12]' : 'hover:bg-white/[0.07]',
+          focusRing,
+        ].join(' ')}
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f5bb2e] text-xs font-black text-[#132a63]">
+          {getInitials(profile?.full_name)}
+        </div>
+        <div className={['flex-1', labelClassName(isExpanded)].join(' ')}>
+          <p className="truncate text-sm font-semibold text-white">
+            {profile?.full_name || 'OLGTPS User'}
+          </p>
+          <p className="truncate text-xs capitalize text-blue-200">{profile?.role}</p>
+        </div>
+        <ChevronsUpDown
+          aria-hidden="true"
+          size={16}
+          className={['shrink-0 text-blue-200', labelClassName(isExpanded)].join(' ')}
+        />
+      </button>
+    </div>
   );
 
   return (
@@ -131,7 +267,7 @@ function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
 
       <aside
         className={[
-          'fixed inset-y-0 left-0 z-40 hidden h-screen overflow-hidden border-r border-[#193a86] bg-gradient-to-b from-[#24499d] via-[#1f3f93] to-[#173274] px-3 py-4 text-white shadow-xl shadow-blue-950/15 transition-[width] duration-300 ease-out lg:flex lg:flex-col',
+          'fixed inset-y-0 left-0 z-40 hidden h-screen flex-col overflow-hidden bg-[#1f3f93] px-3 text-white shadow-xl shadow-blue-950/20 transition-[width] duration-300 ease-out motion-reduce:transition-none lg:flex',
           isDesktopExpanded ? 'w-72' : 'w-20',
         ].join(' ')}
         onMouseEnter={() => onDesktopExpandedChange?.(true)}
@@ -139,130 +275,25 @@ function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
           setIsAccountMenuOpen(false);
           onDesktopExpandedChange?.(false);
         }}
+        onFocus={() => onDesktopExpandedChange?.(true)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            setIsAccountMenuOpen(false);
+            onDesktopExpandedChange?.(false);
+          }
+        }}
       >
-        {!isDesktopExpanded ? (
-          <>
-            <div className="flex shrink-0 justify-center">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white shadow-lg shadow-blue-950/20">
-                {renderLogoImage()}
-              </div>
-            </div>
+        <div className="flex h-20 shrink-0 items-center border-b border-white/10">
+          {renderBrand({ isExpanded: isDesktopExpanded })}
+        </div>
 
-            <nav
-              className="mt-6 flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto overflow-x-hidden"
-              aria-label="Main navigation"
-            >
-              {visibleNavigationItems.map((item) => {
-                const Icon = item.icon;
+        <div className="flex min-h-0 flex-1 flex-col pt-4">
+          {renderNavigation({ isExpanded: isDesktopExpanded })}
+        </div>
 
-                return (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    title={item.label}
-                    className={({ isActive }) =>
-                      [
-                        'flex h-10 w-12 items-center justify-center rounded-md border-l-4 transition',
-                        isActive
-                          ? 'border-[#f5bb2e] bg-white/15 text-[#f5bb2e]'
-                          : 'border-transparent text-blue-50 hover:bg-white/10 hover:text-white',
-                      ].join(' ')
-                    }
-                  >
-                    <Icon aria-hidden="true" size={20} />
-                    <span className="sr-only">{item.label}</span>
-                  </NavLink>
-                );
-              })}
-            </nav>
-
-            <div className="mt-3 flex shrink-0 flex-col items-center gap-2">
-              {isAccountMenuOpen ? (
-                <button
-                  type="button"
-                  onClick={openLogoutConfirm}
-                  className="flex h-10 w-12 items-center justify-center rounded-md border-l-4 border-transparent text-blue-50 transition hover:bg-white/10 hover:text-white"
-                  title="Logout"
-                >
-                  <LogOut aria-hidden="true" size={20} />
-                  <span className="sr-only">Logout</span>
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
-                className="flex h-11 w-12 items-center justify-center rounded-lg border border-white/15 bg-white/10 transition hover:bg-white/15"
-                title="Account"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f5bb2e] text-xs font-black text-[#132a63]">
-                  {(profile?.full_name || 'OU')
-                    .split(' ')
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((name) => name[0])
-                    .join('')
-                    .toUpperCase()}
-                </div>
-                <span className="sr-only">Account menu</span>
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="min-w-0 shrink-0">
-              <div className="flex min-w-0 items-center justify-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white shadow-lg shadow-blue-950/20">
-                  {renderLogoImage()}
-                </div>
-                <div className="min-w-0 overflow-hidden transition-all duration-200 w-48 opacity-100">
-                  <p className="whitespace-nowrap text-lg font-bold tracking-wide text-white">
-                    OLGTPS
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5">
-              {renderNavigation({ isDesktop: true })}
-            </div>
-
-            <div className="mt-auto space-y-2">
-              {isAccountMenuOpen ? (
-                <button
-                  type="button"
-                  onClick={openLogoutConfirm}
-                  className="flex w-full items-center gap-3 rounded-md border border-white/15 bg-white/10 px-3 py-2 text-left text-sm font-medium text-blue-50 transition hover:bg-white/15 hover:text-white"
-                >
-                  <LogOut aria-hidden="true" size={18} />
-                  Logout
-                </button>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
-                className="flex w-full min-w-0 items-center justify-start gap-3 rounded-lg border border-white/15 bg-white/10 p-2 text-left transition-colors hover:bg-white/15"
-                aria-expanded={isAccountMenuOpen}
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f5bb2e] text-xs font-black text-[#132a63]">
-                  {(profile?.full_name || 'OU')
-                    .split(' ')
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((name) => name[0])
-                    .join('')
-                    .toUpperCase()}
-                </div>
-                <div className="min-w-0 overflow-hidden transition-all duration-200 w-44 opacity-100">
-                  <p className="truncate text-sm font-semibold text-white">
-                    {profile?.full_name || 'OLGTPS User'}
-                  </p>
-                  <p className="mt-1 truncate text-xs capitalize text-blue-100">{profile?.role}</p>
-                </div>
-              </button>
-            </div>
-          </>
-        )}
+        <div className="-mx-3 shrink-0 border-t border-white/10 bg-[#1a3681] px-3 py-3">
+          {renderAccount({ isExpanded: isDesktopExpanded })}
+        </div>
       </aside>
 
       {isMobileSidebarOpen ? (
@@ -274,53 +305,28 @@ function Sidebar({ isDesktopExpanded = false, onDesktopExpandedChange }) {
             aria-label="Close navigation overlay"
           />
 
-          <aside className="relative flex h-full w-[min(20rem,86vw)] flex-col bg-gradient-to-b from-[#24499d] via-[#1f3f93] to-[#173274] px-4 py-5 text-white shadow-xl">
-            <div className="mb-6 flex items-start justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white shadow-lg shadow-blue-950/20">
-                  {renderLogoImage()}
-                </div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#f5bb2e]">
-                  OLGTPS
-                </p>
-              </div>
+          <aside className="relative flex h-full w-[min(18rem,86vw)] flex-col bg-[#1f3f93] px-3 text-white shadow-xl">
+            <div className="flex h-20 shrink-0 items-center justify-between gap-4 border-b border-white/10">
+              {renderBrand({ isExpanded: true })}
               <button
                 type="button"
                 onClick={closeMobileSidebar}
-                className="rounded-md p-2 text-blue-100 hover:bg-white/10 hover:text-white"
+                className={[
+                  'rounded-md p-2 text-blue-100 hover:bg-white/10 hover:text-white',
+                  focusRing,
+                ].join(' ')}
                 aria-label="Close navigation"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {renderNavigation({ onNavigate: closeMobileSidebar })}
+            <div className="flex min-h-0 flex-1 flex-col pt-4">
+              {renderNavigation({ isExpanded: true, onNavigate: closeMobileSidebar })}
             </div>
 
-            <div className="mt-4 space-y-2">
-              {isAccountMenuOpen ? (
-                <button
-                  type="button"
-                  onClick={openLogoutConfirm}
-                  className="flex w-full items-center gap-3 rounded-md border border-white/15 bg-white/10 px-3 py-2 text-left text-sm font-medium text-blue-50 hover:bg-white/15 hover:text-white"
-                >
-                  <LogOut aria-hidden="true" size={18} />
-                  Logout
-                </button>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
-                className="w-full rounded-lg border border-white/15 bg-white/10 p-3 text-left transition hover:bg-white/15"
-                aria-expanded={isAccountMenuOpen}
-              >
-                <p className="text-sm font-semibold text-white">
-                  {profile?.full_name || 'OLGTPS User'}
-                </p>
-                <p className="mt-1 text-xs capitalize text-blue-100">{profile?.role}</p>
-              </button>
+            <div className="-mx-3 shrink-0 border-t border-white/10 bg-[#1a3681] px-3 py-3">
+              {renderAccount({ isExpanded: true })}
             </div>
           </aside>
         </div>

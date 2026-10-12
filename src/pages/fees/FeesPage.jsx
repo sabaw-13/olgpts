@@ -42,7 +42,7 @@ function getFeeMutationErrorMessage(error, fallbackMessage) {
   return message;
 }
 
-function FeesPage() {
+function FeesPage({ embedded = false, onBusyChange, onChanged }) {
   const { profile } = useAuth();
   const canManage = ['admin', 'staff'].includes(profile?.role) && profile?.status === 'active';
   const [fees, setFees] = useState([]);
@@ -59,6 +59,8 @@ function FeesPage() {
   const [selectedFee, setSelectedFee] = useState(null);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [pendingDeleteFee, setPendingDeleteFee] = useState(null);
+
+  useEffect(() => { onBusyChange?.(isSaving); }, [isSaving, onBusyChange]);
 
   const fetchFeeData = async () => {
     setLoading(true);
@@ -213,6 +215,7 @@ function FeesPage() {
       );
       setIsFormOpen(false);
       setSelectedFee(null);
+      onChanged?.();
       await fetchFeeData();
     } catch (error) {
       setErrorMessage(getFeeMutationErrorMessage(error, 'Unable to save fee.'));
@@ -239,6 +242,7 @@ function FeesPage() {
       }
 
       setSuccessMessage(`Fee marked as ${status}.`);
+      onChanged?.();
       await fetchFeeData();
     } catch (error) {
       setErrorMessage(getFeeMutationErrorMessage(error, 'Unable to update fee status.'));
@@ -297,6 +301,7 @@ function FeesPage() {
       setPendingDeleteFee(null);
       setIsFormOpen(false);
       setSelectedFee(null);
+      onChanged?.();
       await fetchFeeData();
     } catch (error) {
       setErrorMessage(
@@ -312,9 +317,10 @@ function FeesPage() {
 
   return (
     <div className="space-y-6">
+      {!(embedded && (isFormOpen || pendingStatusChange || pendingDeleteFee)) && (
       <PageHeader
-        sticky
-        title="Fees"
+        sticky={!embedded}
+        title={embedded ? "Fee list" : "Fees"}
         description="Create and manage different school fees assigned to each grade level and school year."
         actions={
           canManage ? (
@@ -329,6 +335,7 @@ function FeesPage() {
           ) : null
         }
       />
+      )}
 
       <NotificationToast
         successMessage={successMessage}
@@ -337,6 +344,7 @@ function FeesPage() {
         onDismissError={() => setErrorMessage('')}
       />
 
+      {!(embedded && (isFormOpen || pendingStatusChange || pendingDeleteFee)) && <>
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 lg:grid-cols-[1fr_repeat(3,minmax(150px,190px))]">
           <label className="relative block">
@@ -413,8 +421,11 @@ function FeesPage() {
         />
       )}
 
+      </>}
+
       <FeeFormModal
-        isOpen={isFormOpen}
+        inline={embedded}
+        isOpen={isFormOpen && !(embedded && pendingDeleteFee)}
         mode={formMode}
         fee={selectedFee}
         gradeLevels={gradeLevels}
@@ -426,6 +437,7 @@ function FeesPage() {
       />
 
       <ConfirmationModal
+        inline={embedded}
         isOpen={Boolean(pendingStatusChange)}
         title={`${pendingStatusChange?.status === 'active' ? 'Activate' : 'Deactivate'} fee?`}
         message={`This will mark "${pendingStatusChange?.fee?.fee_name || 'this fee'}" as ${pendingStatusChange?.status}.`}
@@ -437,6 +449,7 @@ function FeesPage() {
       />
 
       <ConfirmationModal
+        inline={embedded}
         isOpen={Boolean(pendingDeleteFee)}
         title="Delete fee?"
         message={`This will permanently delete "${pendingDeleteFee?.fee_name || 'this fee'}". Fees already used by student accounts or payments may be blocked by the database.`}

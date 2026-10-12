@@ -21,59 +21,6 @@ const initialPromotionForm = {
   enrollment_date: getSchoolDate(),
 };
 
-const fixedGradeSequence = [
-  { key: 'nursery', aliases: ['nursery'] },
-  { key: 'kinder i', aliases: ['kinder i', 'kinder 1'] },
-  { key: 'kindergarten', aliases: ['kindergarten', 'kinder ii', 'kinder 2'] },
-  { key: 'grade i', aliases: ['grade i', 'grade 1', 'grade one'] },
-  { key: 'grade ii', aliases: ['grade ii', 'grade 2', 'grade two'] },
-  { key: 'grade iii', aliases: ['grade iii', 'grade 3', 'grade three'] },
-  { key: 'grade iv', aliases: ['grade iv', 'grade 4', 'grade four'] },
-  { key: 'grade v', aliases: ['grade v', 'grade 5', 'grade five'] },
-  { key: 'grade vi', aliases: ['grade vi', 'grade 6', 'grade six'] },
-];
-
-const graduatingGradeKey = 'grade vi';
-
-function normalizeGradeName(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/[-_/]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function getFixedGradeStep(gradeLevel) {
-  const gradeName = normalizeGradeName(gradeLevel?.grade_name);
-
-  return fixedGradeSequence.findIndex((gradeStep) =>
-    gradeStep.aliases.includes(gradeName),
-  );
-}
-
-function getGradeSortValue(gradeLevel) {
-  const fixedStep = getFixedGradeStep(gradeLevel);
-
-  return fixedStep >= 0 ? fixedStep : Number.POSITIVE_INFINITY;
-}
-
-function sortGradeLevels(firstGrade, secondGrade) {
-  const firstValue = getGradeSortValue(firstGrade);
-  const secondValue = getGradeSortValue(secondGrade);
-
-  if (firstValue !== secondValue) {
-    return firstValue - secondValue;
-  }
-
-  return String(firstGrade.grade_name || '').localeCompare(String(secondGrade.grade_name || ''));
-}
-
-function isGraduatingGradeLevel(gradeLevel) {
-  const fixedStep = getFixedGradeStep(gradeLevel);
-
-  return fixedGradeSequence[fixedStep]?.key === graduatingGradeKey;
-}
-
 function StatusBadge({ status }) {
   const isActive = status === 'active';
 
@@ -406,7 +353,7 @@ function PromotionModal({
 
 function SetupSection({ title, description, actionLabel, canManage, onAdd, children }) {
   return (
-    <section className="flex min-h-0 max-h-[calc(100vh-15rem)] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm 2xl:max-h-[calc(100vh-13rem)]">
+    <section className="flex min-w-0 min-h-0 max-h-[calc(100vh-15rem)] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm 2xl:max-h-[calc(100vh-13rem)]">
       <div className="shrink-0 flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-slate-950">{title}</h3>
@@ -439,7 +386,7 @@ function EmptyState({ message }) {
   );
 }
 
-function SchoolSetupPage() {
+function SchoolSetupPage({ tabs = null }) {
   const { profile } = useAuth();
   const canManage = ['admin', 'staff'].includes(profile?.role);
   const [schoolYears, setSchoolYears] = useState([]);
@@ -463,18 +410,6 @@ function SchoolSetupPage() {
     () => new Map(gradeLevels.map((gradeLevel) => [gradeLevel.id, gradeLevel.grade_name])),
     [gradeLevels],
   );
-
-  const nextGradeLevelById = useMemo(() => {
-    const sortedGradeLevels = [...gradeLevels]
-      .filter((gradeLevel) => gradeLevel.status !== 'inactive')
-      .sort(sortGradeLevels);
-
-    return new Map(
-      sortedGradeLevels
-        .slice(0, -1)
-        .map((gradeLevel, index) => [gradeLevel.id, sortedGradeLevels[index + 1]]),
-    );
-  }, [gradeLevels]);
 
   const fetchSetupData = async () => {
     setLoading(true);
@@ -644,14 +579,16 @@ function SchoolSetupPage() {
       const tableName = getTableName(modalState.type);
       const payload = getPayload(modalState.type);
 
-      const { error } =
-        modalState.mode === 'edit'
+      const { error } = modalState.type === 'schoolYear'
+        ? await supabase.rpc('save_school_year', {
+            p_id: modalState.mode === 'edit' ? modalState.record.id : null,
+            p_school_year: payload.school_year,
+            p_status: payload.status,
+          })
+        : modalState.mode === 'edit'
           ? await supabase.from(tableName).update(payload).eq('id', modalState.record.id)
           : await supabase.from(tableName).insert(payload);
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setSuccessMessage('School setup record saved successfully.');
       setModalState((currentState) => ({ ...currentState, isOpen: false }));
@@ -666,6 +603,12 @@ function SchoolSetupPage() {
   const updateRecordStatus = async (type, record, status) => {
     if (!canManage) {
       setErrorMessage('Only active staff users can manage school setup records.');
+      return;
+    }
+
+    // Only one school year can be active, so activating one goes through the same path as Set Active.
+    if (type === 'schoolYear' && status === 'active') {
+      await setActiveSchoolYear(record);
       return;
     }
 
@@ -703,19 +646,9 @@ function SchoolSetupPage() {
     setSuccessMessage('');
 
     try {
-      const { error: deactivateError } = await supabase
-        .from('school_years')
-        .update({ status: 'inactive' })
-        .neq('id', schoolYear.id);
-
-      if (deactivateError) {
-        throw deactivateError;
-      }
-
-      const { error: activateError } = await supabase
-        .from('school_years')
-        .update({ status: 'active' })
-        .eq('id', schoolYear.id);
+      const { error: activateError } = await supabase.rpc('activate_school_year', {
+        p_id: schoolYear.id,
+      });
 
       if (activateError) {
         throw activateError;
@@ -740,240 +673,23 @@ function SchoolSetupPage() {
     setErrorMessage('');
     setSuccessMessage('');
 
-    let insertedEnrollmentIds = [];
-
     try {
-      const { data: sourceEnrollments, error: enrollmentError } = await supabase
-        .from('enrollments')
-        .select('id, student_id, grade_level_id, created_at')
-        .eq('school_year_id', promotionData.source_school_year_id)
-        .in('enrollment_status', ['pending', 'enrolled'])
-        .order('created_at', { ascending: false });
-
-      if (enrollmentError) {
-        throw enrollmentError;
-      }
-
-      const latestEnrollmentByStudentId = new Map();
-
-      (sourceEnrollments || []).forEach((enrollment) => {
-        if (enrollment.student_id && !latestEnrollmentByStudentId.has(enrollment.student_id)) {
-          latestEnrollmentByStudentId.set(enrollment.student_id, enrollment);
-        }
+      const { data, error } = await supabase.rpc('promote_students', {
+        p_source_school_year_id: promotionData.source_school_year_id,
+        p_target_school_year_id: promotionData.target_school_year_id,
+        p_enrollment_date: promotionData.enrollment_date,
       });
-
-      const latestEnrollments = Array.from(latestEnrollmentByStudentId.values());
-
-      if (latestEnrollments.length === 0) {
-        throw new Error('No students found to promote from the selected school year.');
-      }
-
-      const promotableEnrollments = latestEnrollments
-        .map((enrollment) => {
-          const currentGradeLevel = gradeLevels.find(
-            (gradeLevel) => gradeLevel.id === enrollment.grade_level_id,
-          );
-
-          return {
-            ...enrollment,
-            isGraduating: isGraduatingGradeLevel(currentGradeLevel),
-            nextGradeLevel: nextGradeLevelById.get(enrollment.grade_level_id),
-          };
-        })
-        .filter((enrollment) => enrollment.nextGradeLevel || enrollment.isGraduating);
-
-      if (promotableEnrollments.length === 0) {
-        throw new Error('No next grade level or graduating grade is available for the selected students.');
-      }
-
-      const studentIds = promotableEnrollments.map((enrollment) => enrollment.student_id);
-      const sourceEnrollmentIds = promotableEnrollments.map((enrollment) => enrollment.id);
-
-      const { data: existingTargetEnrollments, error: existingTargetError } = await supabase
-        .from('enrollments')
-        .select('student_id')
-        .eq('school_year_id', promotionData.target_school_year_id)
-        .in('student_id', studentIds);
-
-      if (existingTargetError) {
-        throw existingTargetError;
-      }
-
-      const existingTargetStudentIds = new Set(
-        (existingTargetEnrollments || []).map((enrollment) => enrollment.student_id),
-      );
-      const enrollmentsToPromote = promotableEnrollments.filter(
-        (enrollment) => !existingTargetStudentIds.has(enrollment.student_id),
-      );
-
-      if (enrollmentsToPromote.length === 0) {
-        throw new Error('All selected students already have records in the target school year.');
-      }
-
-      const [
-        studentFeesResult,
-        paymentsResult,
-        activeFeesResult,
-      ] = await Promise.all([
-        supabase
-          .from('student_fees')
-          .select('enrollment_id, amount')
-          .in('enrollment_id', sourceEnrollmentIds),
-        supabase
-          .from('payments')
-          .select('id, enrollment_id')
-          .in('enrollment_id', sourceEnrollmentIds),
-        supabase
-          .from('fees')
-          .select('id, grade_level_id, amount')
-          .eq('school_year_id', promotionData.target_school_year_id)
-          .eq('status', 'active'),
-      ]);
-
-      const queryError =
-        studentFeesResult.error || paymentsResult.error || activeFeesResult.error;
-
-      if (queryError) {
-        throw queryError;
-      }
-
-      const assessedByEnrollmentId = new Map();
-
-      (studentFeesResult.data || []).forEach((studentFee) => {
-        assessedByEnrollmentId.set(
-          studentFee.enrollment_id,
-          (assessedByEnrollmentId.get(studentFee.enrollment_id) || 0) +
-            Number(studentFee.amount || 0),
-        );
-      });
-
-      const payments = paymentsResult.data || [];
-      const paymentIds = payments.map((payment) => payment.id);
-      const enrollmentIdByPaymentId = new Map(
-        payments.map((payment) => [payment.id, payment.enrollment_id]),
-      );
-      const paidByEnrollmentId = new Map();
-
-      if (paymentIds.length > 0) {
-        const { data: paymentDetails, error: paymentDetailsError } = await supabase
-          .from('payment_details')
-          .select('payment_id, amount_paid')
-          .in('payment_id', paymentIds);
-
-        if (paymentDetailsError) {
-          throw paymentDetailsError;
+      if (error) {
+        if (error.code === 'PGRST202' || error.code === '42883') {
+          throw new Error('Run supabase-promotion-integrity-migration.sql in Supabase before promoting students.');
         }
-
-        (paymentDetails || []).forEach((paymentDetail) => {
-          const enrollmentId = enrollmentIdByPaymentId.get(paymentDetail.payment_id);
-
-          if (!enrollmentId) {
-            return;
-          }
-
-          paidByEnrollmentId.set(
-            enrollmentId,
-            (paidByEnrollmentId.get(enrollmentId) || 0) +
-              Number(paymentDetail.amount_paid || 0),
-          );
-        });
+        throw error;
       }
-
-      const enrollmentPayload = enrollmentsToPromote.map((enrollment) => {
-        const assessedAmount = assessedByEnrollmentId.get(enrollment.id) || 0;
-        const paidAmount = paidByEnrollmentId.get(enrollment.id) || 0;
-        const remainingBalance = Math.max(assessedAmount - paidAmount, 0);
-        let enrollmentStatus = remainingBalance > 0 ? 'pending' : 'enrolled';
-
-        if (enrollment.isGraduating) {
-          enrollmentStatus = 'graduated';
-        }
-
-        return {
-          student_id: enrollment.student_id,
-          school_year_id: promotionData.target_school_year_id,
-          grade_level_id: enrollment.isGraduating
-            ? enrollment.grade_level_id
-            : enrollment.nextGradeLevel.id,
-          section_id: null,
-          enrollment_status: enrollmentStatus,
-          enrollment_date: promotionData.enrollment_date,
-        };
-      });
-
-      const { data: savedEnrollments, error: insertEnrollmentError } = await supabase
-        .from('enrollments')
-        .insert(enrollmentPayload)
-        .select('id, student_id, grade_level_id, enrollment_status');
-
-      if (insertEnrollmentError) {
-        throw insertEnrollmentError;
-      }
-
-      insertedEnrollmentIds = (savedEnrollments || []).map((enrollment) => enrollment.id);
-
-      const activeFees = activeFeesResult.data || [];
-      const studentFeePayload = (savedEnrollments || []).flatMap((enrollment) =>
-        enrollment.enrollment_status === 'graduated'
-          ? []
-          : activeFees
-              .filter(
-                (fee) =>
-                  !fee.grade_level_id || fee.grade_level_id === enrollment.grade_level_id,
-              )
-              .map((fee) => ({
-                student_id: enrollment.student_id,
-                enrollment_id: enrollment.id,
-                fee_id: fee.id,
-                amount: fee.amount,
-                status: 'unpaid',
-              })),
-      );
-
-      if (studentFeePayload.length > 0) {
-        const { error: studentFeeError } = await supabase
-          .from('student_fees')
-          .insert(studentFeePayload);
-
-        if (studentFeeError) {
-          throw studentFeeError;
-        }
-      }
-
-      const pendingCount = enrollmentPayload.filter(
-        (enrollment) => enrollment.enrollment_status === 'pending',
-      ).length;
-      const graduatedCount = enrollmentPayload.filter(
-        (enrollment) => enrollment.enrollment_status === 'graduated',
-      ).length;
-      const skippedCount =
-        latestEnrollments.length - enrollmentsToPromote.length;
-
-      setSuccessMessage(
-        `${enrollmentPayload.length} students promoted. ${graduatedCount} marked graduated. ${pendingCount} marked pending due to remaining balances.${
-          skippedCount > 0 ? ` ${skippedCount} skipped.` : ''
-        }`,
-      );
+      setSuccessMessage(`${data.promoted} students promoted. ${data.graduated} marked graduated. ${data.pending} marked pending due to remaining balances. ${data.skipped} skipped.`);
       setIsPromotionOpen(false);
       await fetchSetupData();
     } catch (error) {
-      if (insertedEnrollmentIds.length > 0) {
-        await supabase.from('student_fees').delete().in('enrollment_id', insertedEnrollmentIds);
-        await supabase.from('enrollments').delete().in('id', insertedEnrollmentIds);
-      }
-
-      const message = error.message || '';
-
-      if (
-        message.includes('enrollments_enrollment_status_check') ||
-        message.includes('violates check constraint')
-      ) {
-        setErrorMessage(
-          'Promotion needs the graduated enrollment status in Supabase. Run supabase-enrollment-graduated-status.sql in the SQL editor, then try again.',
-        );
-      } else {
-        setErrorMessage(message || 'Unable to promote students.');
-      }
+      setErrorMessage(error.message || 'Unable to promote students.');
     } finally {
       setIsSaving(false);
     }
@@ -1021,6 +737,10 @@ function SchoolSetupPage() {
     setPendingConfirmation(null);
   };
 
+  const activeSchoolYearCount = schoolYears.filter(
+    (schoolYear) => schoolYear.status === 'active',
+  ).length;
+
   const renderActions = (type, record) => {
     if (!canManage) {
       return null;
@@ -1029,8 +749,8 @@ function SchoolSetupPage() {
     const isInactive = record.status === 'inactive';
 
     return (
-      <div className="flex flex-wrap justify-end gap-2">
-        {type === 'schoolYear' && record.status !== 'active' ? (
+      <div className="flex min-w-0 flex-wrap justify-end gap-2">
+        {type === 'schoolYear' && (record.status !== 'active' || activeSchoolYearCount > 1) ? (
           <button
             type="button"
             onClick={() => requestActiveSchoolYear(record)}
@@ -1051,7 +771,7 @@ function SchoolSetupPage() {
           Edit
         </button>
 
-        <button
+        {type !== 'schoolYear' || !isInactive ? <button
           type="button"
           onClick={() => requestStatusChange(type, record, isInactive ? 'active' : 'inactive')}
           disabled={isSaving}
@@ -1059,7 +779,7 @@ function SchoolSetupPage() {
         >
           <Power size={14} />
           {isInactive ? 'Activate' : 'Deactivate'}
-        </button>
+        </button> : null}
       </div>
     );
   };
@@ -1068,7 +788,7 @@ function SchoolSetupPage() {
     <div className="space-y-6">
       <PageHeader
         sticky
-        title="School Setup"
+        title="Settings"
         description="Manage school years, grade levels, and sections used by OLGTPS records."
         actions={
           canManage ? (
@@ -1084,6 +804,8 @@ function SchoolSetupPage() {
           ) : null
         }
       />
+
+      {tabs}
 
       <NotificationToast
         successMessage={successMessage}
@@ -1109,19 +831,19 @@ function SchoolSetupPage() {
               {schoolYears.length === 0 ? (
                 <EmptyState message="No school years found." />
               ) : (
-                <div className="h-full w-full overflow-auto">
-                  <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
+                <div className="h-full w-full overflow-y-auto">
+                  <table className="school-setup-table w-full min-w-0 table-fixed divide-y divide-slate-200 text-sm">
                     <thead className="sticky top-0 z-10 bg-white">
                       <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                         <th className="px-3 py-3">School Year</th>
                         <th className="px-3 py-3">Status</th>
-                        <th className="px-3 py-3 text-right">Actions</th>
+                        <th className="w-[48%] px-3 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {schoolYears.map((schoolYear) => (
                         <tr key={schoolYear.id}>
-                          <td className="px-3 py-3 font-medium text-slate-900">
+                          <td className="whitespace-normal break-words px-3 py-3 font-medium text-slate-900">
                             {schoolYear.school_year}
                           </td>
                           <td className="px-3 py-3">
@@ -1148,19 +870,19 @@ function SchoolSetupPage() {
               {gradeLevels.length === 0 ? (
                 <EmptyState message="No grade levels found." />
               ) : (
-                <div className="h-full w-full overflow-auto">
-                  <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
+                <div className="h-full w-full overflow-y-auto">
+                  <table className="school-setup-table w-full min-w-0 table-fixed divide-y divide-slate-200 text-sm">
                     <thead className="sticky top-0 z-10 bg-white">
                       <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                         <th className="px-3 py-3">Grade Level</th>
                         <th className="px-3 py-3">Status</th>
-                        <th className="px-3 py-3 text-right">Actions</th>
+                        <th className="w-[48%] px-3 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {gradeLevels.map((gradeLevel) => (
                         <tr key={gradeLevel.id}>
-                          <td className="px-3 py-3 font-medium text-slate-900">
+                          <td className="whitespace-normal break-words px-3 py-3 font-medium text-slate-900">
                             {gradeLevel.grade_name}
                           </td>
                           <td className="px-3 py-3">
@@ -1187,23 +909,23 @@ function SchoolSetupPage() {
               {sections.length === 0 ? (
                 <EmptyState message="No sections found." />
               ) : (
-                <div className="h-full w-full overflow-auto">
-                  <table className="w-full min-w-full divide-y divide-slate-200 text-sm">
+                <div className="h-full w-full overflow-y-auto">
+                  <table className="school-setup-table w-full min-w-0 table-fixed divide-y divide-slate-200 text-sm">
                     <thead className="sticky top-0 z-10 bg-white">
                       <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                         <th className="px-3 py-3">Section</th>
                         <th className="px-3 py-3">Grade Level</th>
                         <th className="px-3 py-3">Status</th>
-                        <th className="px-3 py-3 text-right">Actions</th>
+                        <th className="w-[48%] px-3 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {sections.map((section) => (
                         <tr key={section.id}>
-                          <td className="px-3 py-3 font-medium text-slate-900">
+                          <td className="whitespace-normal break-words px-3 py-3 font-medium text-slate-900">
                             {section.section_name}
                           </td>
-                          <td className="px-3 py-3 text-slate-600">
+                          <td className="whitespace-normal break-words px-3 py-3 text-slate-600">
                             {gradeLevelNames.get(section.grade_level_id) || 'Not assigned'}
                           </td>
                           <td className="px-3 py-3">

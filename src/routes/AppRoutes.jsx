@@ -7,12 +7,11 @@ import LoginPage from '../pages/auth/LoginPage.jsx';
 import NotFoundPage from '../pages/NotFoundPage.jsx';
 const DashboardPage = lazy(() => import('../pages/dashboard/DashboardPage.jsx'));
 const EnrollmentPage = lazy(() => import('../pages/enrollment/EnrollmentPage.jsx'));
-const FeesPage = lazy(() => import('../pages/fees/FeesPage.jsx'));
-const PaymentsPage = lazy(() => import('../pages/payments/PaymentsPage.jsx'));
-const ReceiptsPage = lazy(() => import('../pages/receipts/ReceiptsPage.jsx'));
+const StudentRecordsPage = lazy(() => import('../pages/students/StudentRecordsPage.jsx'));
+const PaymentHubPage = lazy(() => import('../pages/payments/PaymentHubPage.jsx'));
+const SettingsPage = lazy(() => import('../pages/school-setup/SettingsPage.jsx'));
 const ReportsPage = lazy(() => import('../pages/reports/ReportsPage.jsx'));
-const SchoolSetupPage = lazy(() => import('../pages/school-setup/SchoolSetupPage.jsx'));
-const StaffManagementPage = lazy(() => import('../pages/staff/StaffManagementPage.jsx'));
+const FacultyStaffPage = lazy(() => import('../pages/staff/FacultyStaffPage.jsx'));
 
 function HomeRedirect() {
   return <Navigate to="/dashboard" replace />;
@@ -44,47 +43,21 @@ function AppRoutes() {
             path="/students"
             element={
               <RoleBasedRoute allowedRoles={['admin', 'staff']}>
-                <EnrollmentPage />
+                <StudentRecordsPage />
               </RoleBasedRoute>
             }
           />
-          <Route
-            path="/graduated-students"
-            element={
-              <RoleBasedRoute allowedRoles={['admin', 'staff']}>
-                <EnrollmentPage graduatedOnly />
-              </RoleBasedRoute>
-            }
-          />
-          <Route
-            path="/school-setup"
-            element={
-              <RoleBasedRoute allowedRoles={['admin', 'staff']}>
-                <SchoolSetupPage />
-              </RoleBasedRoute>
-            }
-          />
-          <Route
-            path="/enrollment"
-            element={<Navigate to="/students" replace />}
-          />
-          <Route
-            path="/fees"
-            element={
-              <RoleBasedRoute allowedRoles={['admin', 'staff']}>
-                <FeesPage />
-              </RoleBasedRoute>
-            }
-          />
-          <Route path="/payments" element={<PaymentsPage />} />
-          <Route
-            path="/receipts"
-            element={
-              <RoleBasedRoute allowedRoles={['admin', 'staff']}>
-                <ReceiptsPage />
-              </RoleBasedRoute>
-            }
-          />
+          <Route path="/students/graduated" element={<RoleBasedRoute allowedRoles={['admin', 'staff']}><StudentRecordsPage graduatedOnly /></RoleBasedRoute>} />
+          <Route path="/enrollment" element={<RoleBasedRoute allowedRoles={['admin', 'staff']}><EnrollmentPage /></RoleBasedRoute>} />
+          <Route path="/payments" element={<RoleBasedRoute allowedRoles={['admin', 'staff']}><PaymentHubPage /></RoleBasedRoute>} />
+          <Route path="/payments/receipts" element={<RoleBasedRoute allowedRoles={['admin', 'staff']}><PaymentHubPage receipts /></RoleBasedRoute>} />
+          <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'staff']}><SettingsPage /></RoleBasedRoute>} />
+          <Route path="/settings/users" element={<RoleBasedRoute allowedRoles={['admin', 'staff']}><SettingsPage section="users" /></RoleBasedRoute>} />
+          <Route path="/settings/promotion" element={<Navigate to="/settings" replace />} />
+          <Route path="/graduated-students" element={<Navigate to="/students/graduated" replace />} />
+          <Route path="/school-setup" element={<Navigate to="/settings" replace />} />
+          <Route path="/fees" element={<Navigate to="/payments?setup=fees" replace />} />
+          <Route path="/receipts" element={<Navigate to="/payments/receipts" replace />} />
           <Route
             path="/reports"
             element={
@@ -97,7 +70,7 @@ function AppRoutes() {
             path="/staff"
             element={
               <RoleBasedRoute allowedRoles={['admin', 'staff']}>
-                <StaffManagementPage />
+                <FacultyStaffPage />
               </RoleBasedRoute>
             }
           />

@@ -30,7 +30,7 @@ function getPaymentSortTime(payment) {
   return new Date(payment.created_at || payment.payment_date || 0).getTime();
 }
 
-function ReceiptsPage() {
+function ReceiptsPage({ embedded = false }) {
   const [payments, setPayments] = useState([]);
   const [studentFees, setStudentFees] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -173,9 +173,9 @@ function ReceiptsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        sticky
+        sticky={!embedded}
         className="no-print"
-        title="Receipts"
+        title={embedded ? "Receipt records" : "Receipts"}
         description="Search, view, and print official payment receipts."
         actions={
           <button

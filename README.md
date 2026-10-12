@@ -168,6 +168,26 @@ stable ID tie-breaker rather than assuming one API response contains every recor
 Separate paginated queries are not a database snapshot; refresh reports after
 concurrent changes before using their totals.
 
+## Promotion Integrity Migration (Required for Promotion)
+
+After the payment integrity migration, run `supabase-promotion-integrity-migration.sql`.
+Older databases must also apply `supabase-enrollment-graduated-status.sql` first.
+
+Promotion now calls `promote_students`, which reads the complete source cohort and
+balances inside PostgreSQL, creates target enrollments and assessments, and marks
+successfully promoted source enrollments inactive in one transaction. Any failure
+rolls back the batch. Existing target enrollments are skipped on retries. Missing
+or ambiguous immediate next grades abort promotion rather than skipping a grade.
+Grade VI students receive graduated target records without new fee assessments.
+Historical payments and outstanding source assessments are preserved; balances are
+not copied into new school-year fees or forgiven.
+
+Payment checks the latest enrollment before displaying an active account. The new
+migration also rejects new payments for existing graduates whose older enrollments
+were left active by the previous promotion workflow. It does not rewrite those
+historical records. Promotion concurrency should additionally be verified on a
+Supabase test project; the local database tests use a single PostgreSQL connection.
+
 ## How to Create an Admin Account
 
 1. In Supabase, go to Authentication > Users.
@@ -355,3 +375,11 @@ Check that payments have been recorded and that the selected filters are not too
 - Never expose the service role key in frontend code.
 - Use Supabase RLS policies to protect table access.
 - Create Auth users from Supabase Dashboard or a secure backend, not directly with a service role key in React.
+
+## One Active School Year
+
+Run `supabase-school-year-integrity-migration.sql` after the RLS policies.
+If multiple years are active, this migration keeps the most recently created
+active year and marks the others inactive. Use Set Active to choose another year.
+A unique index prevents multiple active years, and the save/activation functions
+switch years in one transaction so a failed switch preserves the previous year.

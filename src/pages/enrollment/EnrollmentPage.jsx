@@ -588,7 +588,7 @@ function EnrollmentPage({ graduatedOnly = false }) {
     <div className="space-y-6">
       <PageHeader
         sticky
-        title={graduatedOnly ? 'Graduated Students' : 'Students'}
+        title={graduatedOnly ? 'Graduated students' : 'Enrolment'}
         description={
           graduatedOnly
             ? 'View students who completed Grade VI and were marked graduated during promotion.'
@@ -611,7 +611,7 @@ function EnrollmentPage({ graduatedOnly = false }) {
                 className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#132a63] hover:bg-slate-100"
               >
                 <Upload size={16} />
-                Import Class List
+                Import class list
               </button>
               <button
                 type="button"
@@ -619,7 +619,7 @@ function EnrollmentPage({ graduatedOnly = false }) {
                 className="inline-flex w-fit items-center gap-2 rounded-md bg-[#f6bd2b] px-4 py-2 text-sm font-semibold text-[#132a63] hover:bg-[#d9a515]"
               >
                 <Plus size={16} />
-                Add Student
+                Register student
               </button>
             </div>
           ) : null

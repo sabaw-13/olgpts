@@ -1,3 +1,4 @@
+import { fetchAllRows } from '../../lib/fetchAllRows.js';
 import { Download, Plus, Search, Upload } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StudentFormModal from '../../components/forms/StudentFormModal.jsx';
@@ -213,11 +214,12 @@ function readFileAsText(file) {
   });
 }
 
-function StudentsPage() {
+function StudentsPage({ embedded = false, graduatedOnly = false }) {
   const { profile } = useAuth();
-  const canAddStudent = ['admin', 'staff'].includes(profile?.role);
+  const canAddStudent = !embedded && ['admin', 'staff'].includes(profile?.role);
   const fileInputRef = useRef(null);
   const [students, setStudents] = useState([]);
+  const [graduatedStudentIds, setGraduatedStudentIds] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [genderFilter, setGenderFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -234,13 +236,23 @@ function StudentsPage() {
     setLoading(true);
     setErrorMessage('');
 
-    const { data, error } = await supabase
+    const [studentsResult, enrollmentsResult] = await Promise.all([
+      fetchAllRows(() => supabase
       .from('students')
       .select(
         'id, lrn, first_name, middle_name, last_name, gender, birthdate, address, contact_number, guardian_name, guardian_contact, created_at, updated_at',
       )
       .order('last_name', { ascending: true })
-      .order('first_name', { ascending: true });
+      .order('first_name', { ascending: true })) ,
+      fetchAllRows(() => supabase.from('enrollments').select('id, student_id, enrollment_status, created_at').order('created_at', { ascending: false })),
+    ]);
+    const data = studentsResult.data;
+    const error = studentsResult.error || enrollmentsResult.error;
+    const latest = new Map();
+    for (const enrollment of enrollmentsResult.data || []) {
+      if (!latest.has(enrollment.student_id)) latest.set(enrollment.student_id, enrollment);
+    }
+    setGraduatedStudentIds(new Set([...latest.values()].filter(row => row.enrollment_status === 'graduated').map(row => row.student_id)));
 
     if (error) {
       setErrorMessage(error.message);
@@ -266,9 +278,9 @@ function StudentsPage() {
       const matchesGender =
         genderFilter === 'all' || student.gender === genderFilter;
 
-      return matchesSearch && matchesGender;
+      return matchesSearch && matchesGender && (graduatedOnly === graduatedStudentIds.has(student.id));
     });
-  }, [genderFilter, searchTerm, students]);
+  }, [genderFilter, searchTerm, students, graduatedOnly, graduatedStudentIds]);
 
   const handleAddStudent = () => {
     if (!canAddStudent) {
@@ -462,6 +474,7 @@ function StudentsPage() {
 
   return (
     <div className="space-y-6">
+      {!embedded && (
       <PageHeader
         sticky
         title="Students"
@@ -504,6 +517,7 @@ function StudentsPage() {
           ) : null
         }
       />
+      )}
 
       <NotificationToast
         successMessage={successMessage}

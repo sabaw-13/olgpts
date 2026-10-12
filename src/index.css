@@ -266,3 +266,15 @@ tbody tr:hover {
     font-size: 11px;
   }
 }
+
+/* Setup cards must fit their columns, including narrow screens. */
+.school-setup-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+.school-setup-table th,
+.school-setup-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
